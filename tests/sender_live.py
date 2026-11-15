@@ -32,9 +32,16 @@ def open_app(page, url):
 def pass_tmt(page, order=None):
     """Clicks through a TMT test: the cross, then the circles with these
     indexes (all in path order by default); None is a click beside them."""
-    page.locator(".tmt-lead").wait_for()
-    page.get_by_role("button", name="Почати").click()
+    page.get_by_role("button", name="Почати пробну спробу").wait_for()
+    page.get_by_role("button", name="Почати пробну спробу").click()
     page.locator(".tmt-run").wait_for()
+    points = page.evaluate(TMT_POINTS)
+    page.mouse.click(*points["cross"])  # the practice, without errors
+    for point in points["circles"]:
+        page.mouse.click(*point)
+        page.wait_for_timeout(40)
+    page.get_by_role("button", name="Почати", exact=True).click()
+    page.wait_for_function("() => document.querySelectorAll('.tmt-run .tmt-circle').length > 8")
     points = page.evaluate(TMT_POINTS)
     page.mouse.click(*points["cross"])
     for index in range(len(points["circles"])) if order is None else order:

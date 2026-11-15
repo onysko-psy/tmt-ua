@@ -102,7 +102,7 @@ class TmtOptionsTest(AppTestCase):
 
                 # A dev link that skips the calibration block gets the same scale.
                 page.goto(self.base + "?mode=dev&only=tmt_a")
-                page.locator(".tmt-lead").wait_for()
+                self.tmt_lead(page, "TMT, частина A").wait_for()
                 scale = page.evaluate("window.tmtua.ctx.scale()")
                 self.assertEqual(scale["source"], "dev_saved")
                 self.assertAlmostEqual(scale["pxPerMm"], PX_PER_MM, places=6)
@@ -112,7 +112,7 @@ class TmtOptionsTest(AppTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors = self.open(browser, "?mode=dev&only=tmt_a")
-                page.locator(".tmt-lead").wait_for()
+                self.tmt_lead(page, "TMT, частина A").wait_for()
                 scale = page.evaluate("window.tmtua.ctx.scale()")
                 self.assertEqual(scale["source"], "fallback")
                 self.assertAlmostEqual(scale["pxPerMm"], FALLBACK, places=6)
@@ -200,7 +200,7 @@ class TmtOptionsTest(AppTestCase):
                 expect(page.locator(".tmt-panel")).to_be_hidden()
                 page.locator(".tmt-run").wait_for()
                 expect(page.locator(".tmt-run .tmt-circle").first).to_be_hidden()
-                expect(page.locator(".tmt-start-hint")).to_have_text("Клацніть хрестик, щоб почати")
+                expect(page.locator(".tmt-start-hint")).to_have_text("Натисніть хрестик, щоб почати")
                 expect(page.locator(".tmt-corner-label")).to_have_text("Пробна спроба")
                 expect(page.locator(".tmt-trial-note")).to_be_visible()
 

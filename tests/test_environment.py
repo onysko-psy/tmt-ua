@@ -11,7 +11,7 @@ import unittest
 
 from playwright.sync_api import expect
 
-from harness import AppTestCase, TMT_BLOCKS
+from harness import AppTestCase, TMT_BLOCKS, TMT_IDS
 
 FAST = "&set.send.retryBaseMs=100&set.send.retryMaxMs=500"
 ENTER = "Увімкнути повноекранний режим"
@@ -40,14 +40,14 @@ class EnvironmentTestCase(AppTestCase):
     def placeholder(self, page, label):
         """Waits for the first screen of a block: a placeholder, or the screen
         before a TMT test."""
-        if label in TMT_BLOCKS.values():
+        if label in TMT_BLOCKS:
             self.tmt_lead(page, label).wait_for()
         else:
             page.locator(".placeholder", has_text=label).wait_for()
 
     def next(self, page):
         """Finishes the block on the screen; a TMT block is clicked through."""
-        if page.locator(".tmt-lead").count():
+        if page.locator(".screen", has_text="Завдання з кружечками").count():
             self.pass_tmt(page)
         else:
             page.get_by_role("button", name="Далі").click()
@@ -157,7 +157,7 @@ class FullscreenTest(EnvironmentTestCase):
                 self.assertEqual(b["tmt_b_test_fs_exit_n"], 0)
                 for task in TASK_IDS:
                     task_summary, task_log = self.summary_of(receiver, task)
-                    if task not in TMT_BLOCKS:
+                    if task not in TMT_IDS:
                         self.assertEqual(task_summary[f"{task}_placeholder"], 1)
                     self.assertIn("events", task_log["env"])
                 post, post_log = self.summary_of(receiver, "post")
@@ -280,7 +280,7 @@ class MonitorTest(EnvironmentTestCase):
                 # All of it happened before the test itself (decisions 133, 135).
                 for key in ["hidden_n", "hidden_ms", "blur_n", "blur_ms", "fs_exit_n", "fs_exit_ms"]:
                     self.assertEqual(summary[f"tmt_a_test_{key}"], 0, key)
-                self.assertEqual(log["env"]["pointer"], {"mouse": 27})  # "Почати", the cross, 25 circles
+                self.assertEqual(log["env"]["pointer"], {"mouse": 37})  # the instruction, the practice (cross, 8 circles), "Почати", the cross, 25 circles
                 self.assert_valid_for_receiver(context, receiver.accepted)
                 self.assertEqual(errors, [])
 

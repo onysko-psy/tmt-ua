@@ -133,7 +133,7 @@ class TmtRunTest(AppTestCase):
                 circles = page.locator(".tmt-run .tmt-circle")
                 self.assertEqual(circles.count(), 25)
                 expect(circles.first).to_be_hidden()
-                expect(page.locator(".tmt-start-hint")).to_have_text("Клацніть хрестик, щоб почати")
+                expect(page.locator(".tmt-start-hint")).to_have_text("Натисніть хрестик, щоб почати")
                 self.assertEqual(page.locator(".tmt-corner-label").count(), 0)  # only in the practice
                 page.mouse.click(*points["corner"])  # not the cross: nothing starts
                 expect(circles.first).to_be_hidden()
@@ -192,7 +192,7 @@ class TmtRunTest(AppTestCase):
 
                 # jsPsych's own data keep the counts only.
                 [trial] = page.evaluate(
-                    "window.tmtua.jsPsych.data.get().values().filter(t => t.trial_type === 'tmtua-tmt')")
+                    "window.tmtua.jsPsych.data.get().values().filter(t => t.trial_type === 'tmtua-tmt' && t.part === 'a')")
                 self.assertEqual((trial["part"], trial["status"], trial["targets_done"]), ("a", "complete", 25))
                 self.assertNotIn("clicks", trial)
                 self.assertNotIn("trajectory", trial)

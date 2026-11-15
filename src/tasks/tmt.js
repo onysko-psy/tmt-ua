@@ -3,9 +3,18 @@ import { texts } from '../texts.uk.js';
 import { TmtPlugin } from '../plugins/tmt.js';
 import { STYLE } from '../tmt/stimuli.js';
 
-// Blocks "tmt_a" and "tmt_b". For now (T1.2) each is the test itself: the
-// cross, the field, the time limit. The instructions and the practice come
-// in T1.3, the final set of columns in T1.4.
+// Blocks "tmt_a" and "tmt_b" (T1.2, T1.3): the instruction, the practice, the
+// screen before the test, the test itself. The final set of columns, with
+// B-A and B/A, comes in T1.4.
+//
+// The practice (decisions 58, 107-109) runs the same field as the test but
+// without the time limit and with the corner label. It counts as passed when
+// it has no errors (clicks beside the circles and repeated clicks are not
+// errors). After a failed attempt the practice is not stopped: the attempt
+// runs to the end, then a screen follows: "try again" after the first
+// failure, the hint after the second and later ones. After the last allowed
+// attempt (practiceMaxAttempts) the session ends with the status
+// practice_failed, and neither the screen before the test nor the test run.
 
 const partOf = (block) => block.id.replace('tmt_', ''); // 'a' or 'b'
 
@@ -35,17 +44,53 @@ export function tmtConfig(part, ctx) {
 
 export function tmtScreens(block, ctx) {
   const part = partOf(block);
+  const t = ctx.params.tmt;
+  const words = texts.tmt[part];
   ctx.tmt ??= {};
-  const state = { result: null, during: null };
+  const state = { result: null, during: null, practice: { attempts: [], passed: false } };
   ctx.tmt[part] = state;
 
-  // Stand-in for the instructions and the practice (T1.3); seen only during
-  // development, so its wording stays here rather than in texts.uk.js.
-  const lead = {
+  const { practice } = state;
+  const trying = () => !practice.passed && practice.attempts.length < t.practiceMaxAttempts;
+  const screen = (stimulus, button, extra = {}) => ({
     type: HtmlButtonResponse,
-    stimulus: `<p class="tmt-lead">${block.label}: основний тест. Інструкції й пробна спроба з’являться в Т1.3.</p>`,
-    choices: ['Почати'],
+    stimulus: `<div class="screen">${stimulus}</div>`,
+    choices: [button],
+    ...extra,
+  });
+
+  const intro = screen(words.intro, texts.tmt.practiceButton);
+  const attempt = {
+    type: TmtPlugin,
+    config: () => tmtConfig(`practice_${part}`, ctx),
+    on_result: (result) => {
+      // The cursor trajectory is kept for the test only (decisions 61 and
+      // the author's answer of 16.11.2026); every click of every attempt stays.
+      const { trajectory, ...record } = result;
+      practice.attempts.push({ attempt: practice.attempts.length + 1, ...record });
+      practice.passed = record.errors_n === 0;
+      if (!practice.passed && !trying()) ctx.end('practice_failed');
+    },
   };
+  // Between attempts: after the first failure "try again", after the second
+  // and later ones the hint (decisions 58, 109).
+  // (jsPsych takes conditional_function only on a timeline, not on a trial.)
+  const between = {
+    timeline: [
+      {
+        timeline: [screen(words.retry, texts.tmt.retryButton)],
+        conditional_function: () => practice.attempts.length < t.practiceHintAfterAttempts,
+      },
+      {
+        timeline: [screen(words.hint, texts.tmt.retryButton)],
+        conditional_function: () => practice.attempts.length >= t.practiceHintAfterAttempts,
+      },
+    ],
+    conditional_function: trying,
+  };
+  const practiceLoop = { timeline: [attempt, between], loop_function: trying };
+
+  const beforeTest = { timeline: [screen(words.main, texts.tmt.mainButton)], conditional_function: () => practice.passed };
   const test = {
     type: TmtPlugin,
     config: () => tmtConfig(part, ctx),
@@ -69,33 +114,37 @@ export function tmtScreens(block, ctx) {
     ],
     conditional_function: () => state.result?.status === 'timeout',
   };
-  return [lead, test, timeout];
+  return [intro, practiceLoop, beforeTest, { timeline: [test], conditional_function: () => practice.passed }, timeout];
 }
 
 export function tmtMessage(block, ctx) {
   const part = partOf(block);
   const state = ctx.tmt?.[part];
-  if (!state?.result) return null;
-  const { clicks, trajectory, ...run } = state.result;
+  const attempts = state?.practice.attempts ?? [];
+  // Nothing to report if the participant never got to the field.
+  if (!state?.result && attempts.length === 0) return null;
   const p = `${block.id}_`;
-  const summary = {
-    [`${p}status`]: run.status,
-    [`${p}time_ms`]: run.time_ms,
-    [`${p}targets_done`]: run.targets_done,
-    [`${p}errors_n`]: run.errors_n,
-    [`${p}err_wrong_target_n`]: run.err_wrong_target_n,
-    // Numbers and letters alternate only in part B.
-    ...(part === 'b' && { [`${p}err_alternation_n`]: run.err_alternation_n }),
-    [`${p}repeat_n`]: run.repeat_n,
-    [`${p}miss_n`]: run.miss_n,
-  };
-  for (const [key, value] of Object.entries(state.during ?? {})) summary[`${p}test_${key}`] = value;
-  const { layout } = ctx.stimuli.tmt;
-  if (part === 'a') summary.layout_version = String(layout.layout_version);
   const t = ctx.params.tmt;
-  return {
-    summary,
-    log: {
+  const summary = { [`${p}practice_attempts_n`]: attempts.length };
+  const log = { practice: { max_attempts: t.practiceMaxAttempts, attempts } };
+  // The test did not run when the practice failed (status practice_failed).
+  if (state.result) {
+    const { clicks, trajectory, ...run } = state.result;
+    Object.assign(summary, {
+      [`${p}status`]: run.status,
+      [`${p}time_ms`]: run.time_ms,
+      [`${p}targets_done`]: run.targets_done,
+      [`${p}errors_n`]: run.errors_n,
+      [`${p}err_wrong_target_n`]: run.err_wrong_target_n,
+      // Numbers and letters alternate only in part B.
+      ...(part === 'b' && { [`${p}err_alternation_n`]: run.err_alternation_n }),
+      [`${p}repeat_n`]: run.repeat_n,
+      [`${p}miss_n`]: run.miss_n,
+    });
+    for (const [key, value] of Object.entries(state.during ?? {})) summary[`${p}test_${key}`] = value;
+    const { layout } = ctx.stimuli.tmt;
+    if (part === 'a') summary.layout_version = String(layout.layout_version);
+    Object.assign(log, {
       ...run,
       layout_version: String(layout.layout_version),
       field_mm: [t.fieldWidthMm, t.fieldHeightMm],
@@ -106,6 +155,7 @@ export function tmtMessage(block, ctx) {
       during_test: state.during,
       clicks,
       trajectory,
-    },
-  };
+    });
+  }
+  return { summary, log };
 }

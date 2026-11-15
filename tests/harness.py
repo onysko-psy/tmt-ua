@@ -42,7 +42,8 @@ TMT_POINTS = """() => {
     };
 }"""
 
-TMT_BLOCKS = {"tmt_a": "TMT, частина A", "tmt_b": "TMT, частина B"}
+TMT_BLOCKS = {"TMT, частина A": "Частина 1", "TMT, частина B": "Частина 2"}
+TMT_IDS = {"tmt_a": "TMT, частина A", "tmt_b": "TMT, частина B"}
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -149,24 +150,47 @@ class AppTestCase(unittest.TestCase):
 
     def click_through(self, page, labels):
         for label in labels:
-            if label in TMT_BLOCKS.values():
+            if label in TMT_BLOCKS:
                 self.pass_tmt(page, label)
                 continue
             page.locator(".placeholder", has_text=label).wait_for()
             page.get_by_role("button", name="Далі").click()
 
-    def tmt_lead(self, page, label):
-        """The screen before a TMT test (a stand-in for the instructions until T1.3)."""
-        return page.locator(".tmt-lead", has_text=label)
+    def field_points(self, page):
+        """Waits for a TMT field and returns where to click (TMT_POINTS)."""
+        page.locator(".tmt-run").wait_for()
+        return page.evaluate(TMT_POINTS)
 
-    def start_tmt(self, page, label=None):
-        """From the screen before a TMT test to the field with the cross;
+    def tmt_lead(self, page, label):
+        """The instruction screen of a TMT part."""
+        return page.locator(".screen", has_text=f"Завдання з кружечками. {TMT_BLOCKS[label]}")
+
+    def start_practice(self, page, label=None):
+        """From the instruction to the field of the first practice attempt;
         returns where to click (TMT_POINTS)."""
         if label:
             self.tmt_lead(page, label).wait_for()
-        page.get_by_role("button", name="Почати").click()
-        page.locator(".tmt-run").wait_for()
-        return page.evaluate(TMT_POINTS)
+        page.get_by_role("button", name="Почати пробну спробу").click()
+        return self.field_points(page)
+
+    def next_attempt(self, page):
+        """After a practice attempt: the screen with 'try again', then the
+        field of the next attempt."""
+        page.get_by_role("button", name="Спробувати ще раз").click()
+        return self.field_points(page)
+
+    def pass_practice(self, page, label=None):
+        """The instruction and a practice attempt without errors, up to the
+        screen before the test."""
+        self.click_tmt(page, self.start_practice(page, label))
+        page.get_by_role("button", name="Почати", exact=True).wait_for()
+
+    def start_tmt(self, page, label=None):
+        """From the instruction through a clean practice to the field of the
+        test with the cross; returns where to click (TMT_POINTS)."""
+        self.pass_practice(page, label)
+        page.get_by_role("button", name="Почати", exact=True).click()
+        return self.field_points(page)
 
     def click_tmt(self, page, points, order=None):
         """The bot: clicks the cross, then the circles with these indexes (all
@@ -211,7 +235,7 @@ class AppTestCase(unittest.TestCase):
                 page.get_by_role("button", name="Далі").click()
         elif block_id == "fullscreen":
             page.get_by_role("button", name="Увімкнути повноекранний режим").click()
-        elif block_id in TMT_BLOCKS:
+        elif block_id in TMT_IDS:
             self.pass_tmt(page, label)
         elif block_id != "device_check":  # an accepted device sees no screen
             raise AssertionError(f"no way through block {block_id}")

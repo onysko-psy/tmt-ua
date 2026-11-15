@@ -79,7 +79,7 @@ class AppShellTest(AppTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors = self.open(browser, "?mode=dev&only=tmt_a&set.tmt.timeLimitMs=20000")
-                expect(page.locator(".tmt-lead")).to_be_visible()
+                expect(self.tmt_lead(page, "TMT, частина A")).to_be_visible()
                 self.assertEqual(page.evaluate("window.tmtua.params.tmt.timeLimitMs"), 20000)
                 self.assertEqual(errors, [])
 
