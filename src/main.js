@@ -53,7 +53,13 @@ function start() {
   const isDev = session.mode === 'dev';
   if (isDev && session.devTool !== null) {
     if (session.devTool === 'env') return renderEnvCheck(session);
-    if (session.devTool === 'tmt') return renderTmtOptions(session);
+    if (session.devTool === 'tmt') {
+      try {
+        return renderTmtOptions(session, buildParams(session.overrides));
+      } catch (error) {
+        return showMessage(error.message);
+      }
+    }
     return showMessage(`Unknown dev tool: ${session.devTool}`);
   }
   if (isDev && session.devStart === null && session.devOnly === null) {

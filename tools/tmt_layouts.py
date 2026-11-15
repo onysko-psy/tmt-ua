@@ -1,7 +1,9 @@
 """Circle layouts for the Trail Making Test: generator and rule checker (T1.1).
 
 The layout is fixed and the same for every participant and at retest
-(decision 64). This tool proposes candidates; the author picks one per part.
+(decision 64). This tool proposes candidates; the author picks one per part,
+and `freeze` copies the chosen ones into the layout file the app uses
+(stimuli/tmt-layout.json). Its layout_version goes into the data.
 Rules come from docs/11-technical-plan.md, section 3, in the research repo:
 the correct path never crosses itself, circles keep a minimum distance, the
 centre stays free for the start cross, and the path of part B is longer than
@@ -15,11 +17,15 @@ central 96 x 60 units, which gives 8 circles the same density as 25 circles
 have on the whole field.
 
 check_layout() is independent of the generator: it only looks at a finished
-layout, and app/tests/test_tmt_layouts.py runs it on the stored file.
+layout, and app/tests/test_tmt_layouts.py runs it on the stored files.
+
+The rule about room for the words "Початок" and "Кінець" shaped the
+candidates; the words themselves are not shown (decision 129).
 
 Usage, from app/:
     python tools/tmt_layouts.py generate   # writes stimuli/tmt-layout-candidates.json
-    python tools/tmt_layouts.py check      # checks the stored file, prints the metrics
+    python tools/tmt_layouts.py freeze     # writes stimuli/tmt-layout.json from CHOSEN
+    python tools/tmt_layouts.py check      # checks both files, prints the metrics
 """
 
 import json
@@ -31,6 +37,12 @@ from pathlib import Path
 CANDIDATES_FILE = Path(__file__).resolve().parent.parent / "stimuli" / "tmt-layout-candidates.json"
 VERSION = "candidates-1"
 VARIANTS = 4
+
+# The layout the app uses. A new choice needs the author's decision and a new
+# LAYOUT_VERSION, which is written into the data (CLAUDE.md: standardisation).
+LAYOUT_FILE = CANDIDATES_FILE.parent / "tmt-layout.json"
+LAYOUT_VERSION = "1"
+CHOSEN = {"a": 1, "b": 1, "practice_a": 1, "practice_b": 1}  # decision 128
 
 UKR_LETTERS = "АБВГҐДЕЄЖЗИІ"  # decision 121: the first 12 letters, none removed
 
@@ -469,6 +481,41 @@ def generate(variants=VARIANTS, log=print):
     return data
 
 
+def freeze(candidates, chosen=CHOSEN, version=LAYOUT_VERSION):
+    """The layout file the app uses: the chosen candidate of each kind."""
+    layouts = {}
+    for kind, variant in chosen.items():
+        layout = next(l for l in candidates["layouts"][kind] if l["variant"] == variant)
+        layouts[kind] = {key: value for key, value in layout.items() if key != "attempt"}
+    return {
+        "layout_version": version,
+        "source": f"{CANDIDATES_FILE.name} ({candidates['version']}): "
+        + ", ".join(f"{kind}-{variant}" for kind, variant in chosen.items()),
+        "units": candidates["units"],
+        "fields": candidates["fields"],
+        "rules": candidates["rules"],
+        "layouts": layouts,
+    }
+
+
+def check_frozen(data, rules=None):
+    """Checks the layout file: every layout keeps the rules, B against A."""
+    rules = rules or data["rules"]
+    problems = []
+    for kind in KINDS:
+        if kind not in data["layouts"]:
+            problems.append(f"{kind}: missing")
+            continue
+        problems += [f"{kind}: {p}" for p in check_layout(data["layouts"][kind], rules)]
+    if problems:
+        return problems
+    for a, b in (("a", "b"), ("practice_a", "practice_b")):
+        ratio = path_length(data["layouts"][b]["points"]) / path_length(data["layouts"][a]["points"])
+        if not 1.25 <= ratio <= 1.45:
+            problems.append(f"{b}: the path is {ratio:.2f} times that of {a}, expected about 1.35")
+    return problems
+
+
 def main(argv):
     command = argv[1] if len(argv) > 1 else "check"
     if command == "generate":
@@ -479,12 +526,21 @@ def main(argv):
         CANDIDATES_FILE.parent.mkdir(exist_ok=True)
         CANDIDATES_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=1) + "\n")
         print(f"written: {CANDIDATES_FILE}")
+    elif command == "freeze":
+        frozen = freeze(json.loads(CANDIDATES_FILE.read_text()))
+        problems = check_frozen(frozen)
+        if problems:
+            sys.exit("\n".join(problems))
+        LAYOUT_FILE.write_text(json.dumps(frozen, ensure_ascii=False, indent=1) + "\n")
+        print(f"written: {LAYOUT_FILE}")
     elif command == "check":
         data = json.loads(CANDIDATES_FILE.read_text())
         for layouts in data["layouts"].values():
             for layout in layouts:
                 print(layout["id"], metrics([tuple(p) for p in layout["points"]], KINDS[layout["kind"]]["field"]))
         problems = check_file(data)
+        if LAYOUT_FILE.exists():
+            problems += [f"{LAYOUT_FILE.name}: {p}" for p in check_frozen(json.loads(LAYOUT_FILE.read_text()))]
         print("\n".join(problems) if problems else "all rules hold")
         sys.exit(1 if problems else 0)
     else:

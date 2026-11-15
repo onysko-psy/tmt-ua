@@ -58,7 +58,9 @@ class TmtOptionsTest(AppTestCase):
                 field = page.locator(".tmt-field").bounding_box()
                 self.assertAlmostEqual(field["width"], 240 * 5, delta=1)
                 self.assertAlmostEqual(field["height"], 150 * 5, delta=1)
-                self.assertEqual(self.labels(page), [str(i) for i in range(1, 26)])
+                # The decided stimuli (decisions 127, 128): part B opens first, for the font choice.
+                self.assertEqual(page.locator(".tmt-field").get_attribute("data-layout"), "b-1")
+                self.assertEqual(self.labels(page), "1 А 2 Б 3 В 4 Г 5 Ґ 6 Д 7 Е 8 Є 9 Ж 10 З 11 И 12 І 13".split())
                 circle = page.locator(".tmt-circle circle").first.bounding_box()
                 self.assertAlmostEqual(circle["width"], 11 * 5, delta=1)  # outline included
                 # Capital letters and digits are 4.5 mm tall: the font size follows from the font's own proportions.
@@ -129,46 +131,46 @@ class TmtOptionsTest(AppTestCase):
         self.assertIsNone(page.evaluate("localStorage.getItem('tmtua.dev.calibration')"))
         self.assertEqual(errors, [])
 
-    def test_switching_options(self):
+    def test_switching_parts_and_fonts(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, _ = self.open_tool(browser)
-                first = page.locator(".tmt-field").get_attribute("data-layout")
-                self.assertEqual(first, "a-1")
+                # Sizes and layouts are decided: nothing on the page changes them.
+                self.assertEqual(page.get_by_role("button", name="240×150").count(), 0)
+                self.assertEqual(page.locator('[data-set="layout"]').count(), 0)
+                expect(page.locator(".tmt-layout-note")).to_contain_text("версія 1")
 
-                page.keyboard.press("ArrowRight")
-                self.assertEqual(page.locator(".tmt-field").get_attribute("data-layout"), "a-2")
-                page.get_by_role("button", name="B", exact=True).click()
+                page.get_by_role("button", name="A", exact=True).click()
+                self.assertEqual(page.locator(".tmt-field").get_attribute("data-layout"), "a-1")
+                self.assertEqual(self.labels(page), [str(i) for i in range(1, 26)])
+                page.keyboard.press("ArrowDown")
                 self.assertEqual(page.locator(".tmt-field").get_attribute("data-layout"), "b-1")
-                self.assertEqual(self.labels(page), "1 А 2 Б 3 В 4 Г 5 Ґ 6 Д 7 Е 8 Є 9 Ж 10 З 11 И 12 І 13".split())
+                page.keyboard.press("ArrowDown")
+                self.assertEqual(page.locator(".tmt-field").get_attribute("data-layout"), "practice_a-1")
+                self.assertEqual(self.labels(page), "1 2 3 4 5 6 7 8".split())
                 page.get_by_role("button", name="Пробна B").click()
                 self.assertEqual(self.labels(page), "1 А 2 Б 3 В 4 Г".split())
 
-                page.get_by_role("button", name="256×160").click()
-                page.get_by_role("button", name="12", exact=True).click()
-                page.get_by_role("button", name="Montserrat").click()
-                field = page.locator(".tmt-field").bounding_box()
-                self.assertAlmostEqual(field["width"], 256 * 5, delta=1)
-                circle = page.locator(".tmt-circle circle").first.bounding_box()
-                self.assertAlmostEqual(circle["width"], 12 * 5, delta=1)
-                self.assertIn("Montserrat TMT", page.locator(".tmt-circle text").first.get_attribute("font-family"))
+                family = lambda: page.locator(".tmt-circle text").first.get_attribute("font-family")
+                self.assertIn("Montserrat TMT", family())
+                page.keyboard.press("ArrowRight")
+                self.assertIn("Montserrat SemiBold TMT", family())
+                page.get_by_role("button", name="Arsenal").click()
+                self.assertIn("Arsenal TMT", family())
+                expect(page.locator(".tmt-summary")).to_have_text("шрифт Arsenal")
 
                 page.get_by_label("лінії шляху").check()
                 page.get_by_label("хрестик").check()
-                page.get_by_label("«Початок» і «Кінець»").check()
                 self.assertEqual(page.locator(".tmt-path").count(), 1)
                 self.assertEqual(page.locator(".tmt-cross").count(), 1)
-                self.assertEqual(page.locator(".tmt-word").all_text_contents(), ["Початок", "Кінець"])
-
-                expect(page.locator(".tmt-summary")).to_have_text(
-                    "A-2, B-1, пробна A-1, пробна B-1; поле 256×160 мм, кружечок 12 мм, "
-                    "літери 4,5 мм, шрифт Montserrat, підписи «Початок»/«Кінець»: так")
+                self.assertEqual(page.locator(".tmt-word").count(), 0)  # no start and end words (decision 129)
 
                 # The choice survives a reload.
                 page.reload()
                 page.locator(".tmt-field").wait_for()
                 self.assertEqual(page.locator(".tmt-field").get_attribute("data-layout"), "practice_b-1")
-                expect(page.locator(".tmt-summary")).to_contain_text("шрифт Montserrat")
+                expect(page.locator(".tmt-summary")).to_have_text("шрифт Arsenal")
+                self.assertEqual(page.locator(".tmt-path").count(), 1)
 
                 # The panel hides to leave the field alone, and comes back.
                 page.keyboard.press("h")
@@ -177,8 +179,17 @@ class TmtOptionsTest(AppTestCase):
                 expect(page.locator(".tmt-panel")).to_be_visible()
 
                 page.get_by_role("button", name="Літери зблизька").click()
-                self.assertEqual(page.locator(".tmt-specimen .tmt-circle").count(), 3 * 18)
+                self.assertEqual(page.locator(".tmt-specimen .tmt-circle").count(), 4 * 18)
                 self.assertEqual(errors, [])
+
+    def test_sizes_come_from_the_parameters(self):
+        browser = self.browsers[0]
+        context, _ = self.new_context(browser, init_script=SAVED)
+        page, errors = self.open(browser, TOOL + "&set.tmt.circleMm=12&set.tmt.fieldWidthMm=256", context=context)
+        page.locator(".tmt-field").wait_for()
+        self.assertAlmostEqual(page.locator(".tmt-field").bounding_box()["width"], 256 * 5, delta=1)
+        self.assertAlmostEqual(page.locator(".tmt-circle circle").first.bounding_box()["width"], 12 * 5, delta=1)
+        self.assertEqual(errors, [])
 
     def test_trying_a_layout(self):
         for browser in self.browsers:
@@ -229,13 +240,13 @@ class TmtOptionsTest(AppTestCase):
         self.assertEqual(errors, [])
 
     def test_bundled_fonts_tell_the_look_alikes_apart(self):
-        """Decision 121. The digit 3 must have its flat-top shape (in Inter
-        it is an alternate that the build makes the default), and Ґ its hook."""
+        """Decision 121: the digit 3 has its flat top, Ґ its hook, and the
+        fonts on offer are those of decision 130."""
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, _ = self.open_tool(browser)
                 fonts = page.evaluate("window.tmtuaOptions.fonts")
-                self.assertEqual([font["id"] for font in fonts], ["inter", "montserrat", "arsenal"])
+                self.assertEqual([font["id"] for font in fonts], ["montserrat", "montserrat600", "arsenal", "lineseed"])
                 for font in fonts:
                     loaded = page.evaluate(
                         "([family, weight]) => document.fonts.check(`${weight} 20px '${family}'`, 'АҐЄІ3')",
@@ -250,7 +261,7 @@ class TmtOptionsTest(AppTestCase):
         browser = self.browsers[0]
         page, errors, _ = self.open_tool(browser)
         served = page.evaluate("window.tmtuaOptions.data")
-        stored = json.loads((self.app_dir() / "stimuli" / "tmt-layout-candidates.json").read_text())
+        stored = json.loads((self.app_dir() / "stimuli" / "tmt-layout.json").read_text())
         self.assertEqual(served, stored)
 
     @staticmethod

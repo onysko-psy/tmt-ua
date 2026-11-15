@@ -8,13 +8,15 @@ The modified files get their own family name ("... TMT"), and the licence of
 each font is copied next to it.
 
 Why these fonts: the digit 3 has a flat top, so it differs from the letter З
-(decision 121). In Inter that shape is the alternate "cv09"; here it is made
-the default 3, so nothing depends on browser support for font features.
+(decision 121), and digits are as tall as capitals. Inter was offered first,
+with its flat-top 3 made the default, but the author found З and 3 too alike
+in it (decision 130). Fonts tried and left out, with the reasons, are listed
+in docs/14 (T1.1) of the research repo.
 
 Sources (https://github.com/google/fonts, folder ofl/<name>/):
-    inter/Inter[opsz,wght].ttf            Version 4.001
     montserrat/Montserrat[wght].ttf       Version 9.000
     arsenal/Arsenal-Bold.ttf              Version 2.000
+    lineseedjp/LINESeedJP-Regular.ttf     LINE Seed JP (Japanese and Latin, has Ukrainian Cyrillic)
 
 Needs fonttools and brotli. Usage, from app/:
     python tools/build_fonts.py <folder with the downloaded ofl/ subfolders>
@@ -42,15 +44,6 @@ CHARS = (
 
 FONTS = [
     {
-        "id": "inter",
-        "family": "Inter TMT",
-        "label": "Inter",
-        "source": "inter/Inter[opsz,wght].ttf",
-        "axes": {"wght": 500, "opsz": 14},
-        "weight": 500,
-        "remap": {"3": "three.1"},  # cv09, flat-top three
-    },
-    {
         "id": "montserrat",
         "family": "Montserrat TMT",
         "label": "Montserrat",
@@ -59,11 +52,26 @@ FONTS = [
         "weight": 500,
     },
     {
+        "id": "montserrat600",
+        "family": "Montserrat SemiBold TMT",
+        "label": "Montserrat жирніший",
+        "source": "montserrat/Montserrat[wght].ttf",
+        "axes": {"wght": 600},
+        "weight": 600,
+    },
+    {
         "id": "arsenal",
         "family": "Arsenal TMT",
         "label": "Arsenal",
         "source": "arsenal/Arsenal-Bold.ttf",
         "weight": 700,
+    },
+    {
+        "id": "lineseed",
+        "family": "LINE Seed TMT",
+        "label": "LINE Seed",
+        "source": "lineseedjp/LINESeedJP-Regular.ttf",
+        "weight": 400,
     },
 ]
 

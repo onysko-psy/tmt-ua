@@ -1,33 +1,23 @@
+import { PARAMS } from './config.js';
 import { devUrl } from './dev.js';
 import { devScale } from './scale.js';
 import { enterFullscreen, exitFullscreen, fullscreenSupported, isFullscreen, onFullscreenChange } from './fullscreen.js';
 import { renderField, label, pathLengthMm, minGapMm } from './tmt/field.js';
-import {
-  LAYOUTS_URL,
-  FONTS_URL,
-  FONTS_DIR,
-  FIELDS_MM,
-  CIRCLES_MM,
-  LETTERS_MM,
-  FONT_IDS,
-  PARTS,
-  DEFAULT_CHOICE,
-  STYLE,
-  WORDS,
-  SPECIMEN,
-} from './tmt/candidates.js';
+import { LAYOUT_URL, STYLE, PARTS, loadFonts } from './tmt/stimuli.js';
+import { FONT_IDS, DEFAULT_CHOICE, SPECIMEN } from './tmt/candidates.js';
 
-// Dev page ?mode=dev&tool=tmt (T1.1): the author looks at the candidate
-// layouts, sizes and fonts of the TMT in their real size on his own screen
-// and picks. Sizes are in mm through the last calibration made in dev mode
-// in this browser (scale.js); without one they are only approximate, and the
-// page says so. Nothing is sent anywhere.
+// Dev page ?mode=dev&tool=tmt (T1.1). Shows the TMT as decided — field,
+// circle and letter sizes from PARAMS.tmt (decision 127), the layouts of
+// stimuli/tmt-layout.json (decision 128) — in real size on the author's
+// screen, with the fonts he still chooses from (decision 130). Sizes are in
+// mm through the last calibration made in dev mode in this browser
+// (scale.js); without one they are only approximate, and the page says so.
+// Nothing is sent anywhere.
 //
-// "Try it" lets him click through a layout to feel the sizes under a mouse or
-// a touchpad: start on the cross, a right click draws the line, a wrong
-// circle turns red until the next right one (decisions 59, 63). It is a
-// rough preview of the behaviour, not the TMT plugin (T1.2), and records
-// nothing.
+// "Try it" lets him click through a layout to feel it under a mouse or a
+// touchpad: start on the cross, a right click draws the line, a wrong circle
+// turns red until the next right one (decisions 59, 63). It is a rough
+// preview of the behaviour, not the TMT plugin (T1.2), and records nothing.
 
 const CHOICE_KEY = 'tmtua.dev.tmtChoice';
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -38,11 +28,11 @@ function loadChoice() {
   const choice = structuredClone(DEFAULT_CHOICE);
   try {
     const saved = JSON.parse(localStorage.getItem(CHOICE_KEY)) ?? {};
-    for (const key of ['part', 'field', 'circle', 'letter', 'font']) {
-      if (key in saved) choice[key] = saved[key];
+    if (saved.part === 'letters' || PARTS.some((p) => p.id === saved.part)) choice.part = saved.part;
+    if (FONT_IDS.includes(saved.font)) choice.font = saved.font;
+    for (const key of Object.keys(choice.show)) {
+      if (typeof saved.show?.[key] === 'boolean') choice.show[key] = saved.show[key];
     }
-    Object.assign(choice.layout, saved.layout);
-    Object.assign(choice.show, saved.show);
   } catch {
     // keep the defaults
   }
@@ -55,18 +45,6 @@ function saveChoice(choice) {
   } catch {
     // the choice then lives until the page is closed
   }
-}
-
-async function loadFonts() {
-  const { fonts } = await (await fetch(FONTS_URL)).json();
-  const offered = FONT_IDS.map((id) => fonts.find((font) => font.id === id));
-  await Promise.all(
-    offered.map(async (font) => {
-      const face = new FontFace(font.family, `url(${FONTS_DIR}${font.file})`, { weight: String(font.weight) });
-      document.fonts.add(await face.load());
-    }),
-  );
-  return offered;
 }
 
 // A row of buttons of which one is on.
@@ -82,12 +60,12 @@ function group(title, name, items, current) {
   return `<span class="tmt-group"><b>${title}</b>${buttons}</span>`;
 }
 
-// Circles with the look-alike pairs, one row per font, in the chosen size.
-function renderSpecimen(fonts, circleMm, letterMm, pxPerMm) {
+// Circles with the look-alike pairs, one row per font, in the decided size.
+function renderSpecimen(fonts, circleMm, letterMm, pxPerMm, chosen) {
   const step = circleMm + 3;
   const gap = 7;
   const lineWidth = (line) => line.reduce((sum, set) => sum + set.length * step + gap, 0);
-  const width = 34 + Math.max(...SPECIMEN.map(lineWidth));
+  const width = 56 + Math.max(...SPECIMEN.map(lineWidth));
   const lineHeight = circleMm + 4;
   const rowHeight = SPECIMEN.length * lineHeight + 8;
   const height = fonts.length * rowHeight;
@@ -98,10 +76,12 @@ function renderSpecimen(fonts, circleMm, letterMm, pxPerMm) {
   svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
   fonts.forEach((font, row) => {
     const top = rowHeight * row + 4;
-    svg.append(label(font.label, 16, top + (SPECIMEN.length * lineHeight) / 2, 3, font));
+    const name = label(font.label, 27, top + (SPECIMEN.length * lineHeight) / 2, 2.6, font);
+    if (font.id === chosen) name.setAttribute('fill', '#0b57a4');
+    svg.append(name);
     SPECIMEN.forEach((line, lineIndex) => {
       const y = top + lineHeight * lineIndex + lineHeight / 2;
-      let x = 34 + circleMm / 2;
+      let x = 56 + circleMm / 2;
       for (const set of line) {
         for (const text of set) {
           const circle = document.createElementNS(SVG_NS, 'circle');
@@ -111,10 +91,10 @@ function renderSpecimen(fonts, circleMm, letterMm, pxPerMm) {
           circle.setAttribute('fill', '#fff');
           circle.setAttribute('stroke', '#000');
           circle.setAttribute('stroke-width', STYLE.circleStrokeMm);
-          const group = document.createElementNS(SVG_NS, 'g');
-          group.setAttribute('class', 'tmt-circle');
-          group.append(circle, label(text, x, y, letterMm, font));
-          svg.append(group);
+          const node = document.createElementNS(SVG_NS, 'g');
+          node.setAttribute('class', 'tmt-circle');
+          node.append(circle, label(text, x, y, letterMm, font));
+          svg.append(node);
           x += step;
         }
         x += gap;
@@ -124,16 +104,21 @@ function renderSpecimen(fonts, circleMm, letterMm, pxPerMm) {
   return svg;
 }
 
-export async function renderTmtOptions(session) {
+export async function renderTmtOptions(session, params = PARAMS) {
   document.body.innerHTML = '<p class="message">Завантаження…</p>';
   let data, fonts;
   try {
-    [data, fonts] = await Promise.all([fetch(LAYOUTS_URL).then((r) => r.json()), loadFonts()]);
+    [data, fonts] = await Promise.all([fetch(LAYOUT_URL).then((r) => r.json()), loadFonts(FONT_IDS)]);
   } catch (error) {
-    document.body.innerHTML = `<p class="message">Не вдалося завантажити варіанти: ${error.message}</p>`;
+    document.body.innerHTML = `<p class="message">Не вдалося завантажити стимули: ${error.message}</p>`;
     return;
   }
 
+  const sizes = {
+    fieldMm: { w: params.tmt.fieldWidthMm, h: params.tmt.fieldHeightMm },
+    circleMm: params.tmt.circleMm,
+    letterMm: params.tmt.letterMm,
+  };
   const choice = loadChoice();
   const scale = devScale();
   let panelHidden = false;
@@ -153,15 +138,12 @@ export async function renderTmtOptions(session) {
   const trialNote = document.querySelector('.tmt-trial-note');
 
   const current = () => {
-    const fieldMm = FIELDS_MM[choice.field];
     const part = choice.part === 'letters' ? 'b' : choice.part;
     return {
       part,
-      fieldMm,
-      circleMm: CIRCLES_MM[choice.circle],
-      letterMm: LETTERS_MM[choice.letter],
+      ...sizes,
       font: fonts.find((font) => font.id === choice.font) ?? fonts[0],
-      layout: data.layouts[part].find((layout) => layout.variant === choice.layout[part]),
+      layout: data.layouts[part],
     };
   };
 
@@ -179,61 +161,49 @@ export async function renderTmtOptions(session) {
     return `Масштаб: ${num(scale.pxPerMm, 2)} px/мм, калібрування від ${when} · ${calibrate} ще раз.${zoomed}`;
   };
 
-  const fitNote = (fieldMm) => {
+  const fitNote = () => {
     const pageW = window.innerWidth / scale.pxPerMm;
     const pageH = window.innerHeight / scale.pxPerMm;
-    const fits = pageW >= fieldMm.w && pageH >= fieldMm.h;
-    return `Сторінка зараз ${num(pageW, 0)} × ${num(pageH, 0)} мм: поле ${fieldMm.w} × ${fieldMm.h} мм ${
+    const fits = pageW >= sizes.fieldMm.w && pageH >= sizes.fieldMm.h;
+    return `Сторінка зараз ${num(pageW, 0)} × ${num(pageH, 0)} мм: поле ${sizes.fieldMm.w} × ${sizes.fieldMm.h} мм ${
       fits ? 'влазить' : '<span class="tmt-warn">не влазить</span>'
     }${isFullscreen() ? '' : ' (не в повноекранному режимі)'}.`;
   };
 
   const layoutNote = (c) => {
-    const lengthOf = (kind) =>
-      pathLengthMm(data.layouts[kind].find((l) => l.variant === choice.layout[kind]), c.fieldMm);
-    const gap = minGapMm(c.layout, c.fieldMm, c.circleMm);
     const pair = c.part.startsWith('practice') ? ['practice_a', 'practice_b'] : ['a', 'b'];
-    const [a, b] = pair.map(lengthOf);
-    const tight = gap < c.circleMm ? ' <span class="tmt-warn">(менше за діаметр)</span>' : '';
-    return `Розташування ${c.layout.id}: найменший проміжок між кружечками ${num(gap)} мм${tight} ·
-      шлях ${num(lengthOf(c.part) / 10, 0)} см · обрані ${pair[0] === 'a' ? 'A і B' : 'пробні A і B'}:
-      ${num(a / 10, 0)} і ${num(b / 10, 0)} см, B довша в ${num(b / a, 2)} раза.`;
+    const [a, b] = pair.map((kind) => pathLengthMm(data.layouts[kind], c.fieldMm));
+    return `Розташування ${c.layout.id}, версія ${data.layout_version} · поле ${c.fieldMm.w}×${c.fieldMm.h} мм,
+      кружечок ${c.circleMm} мм, літери ${num(c.letterMm)} мм · найменший проміжок між кружечками
+      ${num(minGapMm(c.layout, c.fieldMm, c.circleMm))} мм · шлях ${pair[0] === 'a' ? 'A і B' : 'пробних A і B'}:
+      ${num(a / 10, 0)} і ${num(b / 10, 0)} см.`;
   };
 
-  const summary = (c) =>
-    `A-${choice.layout.a}, B-${choice.layout.b}, пробна A-${choice.layout.practice_a}, ` +
-    `пробна B-${choice.layout.practice_b}; поле ${c.fieldMm.w}×${c.fieldMm.h} мм, кружечок ${c.circleMm} мм, ` +
-    `літери ${num(c.letterMm)} мм, шрифт ${c.font.label}, підписи «Початок»/«Кінець»: ${choice.show.words ? 'так' : 'ні'}`;
+  const summary = (c) => `шрифт ${c.font.label}`;
 
   const drawPanel = (c) => {
-    const variants = data.layouts[c.part].map((layout) => [layout.variant, layout.variant]);
     const check = (key, text) =>
       `<label><input type="checkbox" data-show="${key}"${choice.show[key] ? ' checked' : ''}> ${text}</label>`;
     panel.innerHTML = `
       <div class="tmt-row">
         <a href="${devUrl(session)}">← меню</a>
         ${group('Частина', 'part', [...PARTS.map((p) => [p.id, p.label]), ['letters', 'Літери зблизька']], choice.part)}
-        ${choice.part === 'letters' ? '' : group('Розташування', 'layout', variants, choice.layout[c.part])}
         ${group('Шрифт', 'font', fonts.map((f) => [f.id, f.label]), choice.font)}
+      </div>
+      <div class="tmt-row">
+        ${check('path', 'лінії шляху')} ${check('border', 'межа поля')} ${check('cross', 'хрестик')}
         <button type="button" data-act="fullscreen">${isFullscreen() ? 'Вийти з повноекранного режиму' : 'Повноекранний режим'}</button>
         <button type="button" data-act="hide">Сховати панель (H)</button>
         ${choice.part === 'letters' ? '' : '<button type="button" data-act="try">Спробувати пройти (T)</button>'}
       </div>
-      <div class="tmt-row">
-        ${group('Поле, мм', 'field', FIELDS_MM.map((f, i) => [i, `${f.w}×${f.h}`]), choice.field)}
-        ${group('Кружечок, мм', 'circle', CIRCLES_MM.map((d, i) => [i, d]), choice.circle)}
-        ${group('Літери, мм', 'letter', LETTERS_MM.map((h, i) => [i, num(h)]), choice.letter)}
-        ${check('path', 'лінії шляху')} ${check('border', 'межа поля')} ${check('cross', 'хрестик')}
-        ${check('words', '«Початок» і «Кінець»')}
-      </div>
       <div class="tmt-row tmt-notes">
-        <span class="tmt-scale">${scaleNote()}</span> <span class="tmt-fit">${fitNote(c.fieldMm)}</span>
+        <span class="tmt-scale">${scaleNote()}</span> <span class="tmt-fit">${fitNote()}</span>
         ${choice.part === 'letters' ? '' : `<span class="tmt-layout-note">${layoutNote(c)}</span>`}
       </div>
       <div class="tmt-row tmt-notes">
         <span>Обрано: <b class="tmt-summary">${summary(c)}</b></span>
         <button type="button" data-act="copy">Скопіювати</button>
-        <span class="dev-hint">Клавіші: ← → — розташування, ↑ ↓ — частина, H — панель, T — спробувати.</span>
+        <span class="dev-hint">Клавіші: ← → — шрифт, ↑ ↓ — частина, H — панель, T — спробувати.</span>
       </div>
       ${trialResult ? `<div class="tmt-row tmt-notes"><span class="tmt-trial-result">${trialResult}</span></div>` : ''}`;
   };
@@ -248,9 +218,7 @@ export async function renderTmtOptions(session) {
       font: c.font,
       pxPerMm: scale.pxPerMm,
       style: STYLE,
-      labelBox: data.rules.label_box,
       show,
-      words: WORDS,
     });
 
   // Any redraw ends a try that is under way: the field is drawn anew.
@@ -261,9 +229,11 @@ export async function renderTmtOptions(session) {
     drawPanel(c);
     panel.hidden = panelHidden;
     showButton.hidden = !panelHidden;
+    // Keeps the top of a tall view from hiding under the panel.
+    stage.style.paddingTop = panelHidden ? '0' : `${panel.offsetHeight}px`;
     const view =
       choice.part === 'letters'
-        ? renderSpecimen(fonts, c.circleMm, c.letterMm, scale.pxPerMm)
+        ? renderSpecimen(fonts, c.circleMm, c.letterMm, scale.pxPerMm, choice.font)
         : fieldView(c, choice.show);
     stage.replaceChildren(view);
     saveChoice(choice);
@@ -341,9 +311,7 @@ export async function renderTmtOptions(session) {
   };
 
   const set = (name, value) => {
-    if (name === 'layout') choice.layout[current().part] = Number(value);
-    else if (name === 'part' || name === 'font') choice[name] = value;
-    else choice[name] = Number(value);
+    choice[name] = value;
     draw();
   };
 
@@ -387,21 +355,20 @@ export async function renderTmtOptions(session) {
       panelHidden = false;
       return draw();
     }
-    const parts = [...PARTS.map((p) => p.id), 'letters'];
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
       event.preventDefault();
+      const parts = [...PARTS.map((p) => p.id), 'letters'];
       return set('part', step(parts, choice.part, event.key === 'ArrowDown' ? 1 : -1));
     }
-    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && choice.part !== 'letters') {
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
-      const variants = data.layouts[choice.part].map((layout) => layout.variant);
-      set('layout', step(variants, choice.layout[choice.part], event.key === 'ArrowRight' ? 1 : -1));
+      set('font', step(FONT_IDS, choice.font, event.key === 'ArrowRight' ? 1 : -1));
     }
   });
   window.addEventListener('resize', draw);
   if (fullscreenSupported()) onFullscreenChange(draw);
 
   // Handle for automated checks.
-  window.tmtuaOptions = { choice, scale, data, fonts, current };
+  window.tmtuaOptions = { choice, scale, data, fonts, sizes, current };
   draw();
 }

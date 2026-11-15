@@ -3,7 +3,7 @@
 // new version number (CLAUDE.md). Decision numbers refer to
 // docs/05-history-and-decisions.md in the private research repo.
 
-export const APP_VERSION = '0.4.0';
+export const APP_VERSION = '0.5.0';
 
 // Values allowed in the ?mode= URL parameter; no parameter means 'main'.
 // pilot and dev write to the pilot copies of the spreadsheets (decision 53).
@@ -23,6 +23,13 @@ export const PARAMS = {
     practiceMaxAttempts: 5, // decision 58
     practiceHintAfterAttempts: 2, // decision 58
     trajectoryHz: 30, // decision 61
+    // Stimulus sizes in mm (decision 127); the layout itself, with its
+    // version, is stimuli/tmt-layout.json (decision 128). A field unit of the
+    // layout is 1/100 of the field height.
+    fieldWidthMm: 240,
+    fieldHeightMm: 150,
+    circleMm: 11,
+    letterMm: 4.5, // height of capital letters and digits
   },
   coding: {
     durationMs: 90_000, // protocol
@@ -48,8 +55,8 @@ export const PARAMS = {
     screenWidthMinMm: 180, // the screen width a card result implies must be
     screenWidthMaxMm: 900, // plausible: an 8" tablet .. a 40" monitor
   },
-  // The area the tasks need, in mm. PROVISIONAL: set together with the TMT
-  // field size in T1.1 (open question B3); 240 x 150 lets 13" laptops in.
+  // The area the tasks need, in mm: the TMT field (decision 127). Laptops
+  // from about 12.5" hold it.
   screen: {
     minWidthMm: 240,
     minHeightMm: 150,

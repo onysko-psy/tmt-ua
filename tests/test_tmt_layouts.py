@@ -75,6 +75,43 @@ class StoredLayoutsTest(unittest.TestCase):
                 self.assertEqual(layout["metrics"], t.metrics(points, t.KINDS[kind]["field"]), layout["id"])
 
 
+class ChosenLayoutTest(unittest.TestCase):
+    """stimuli/tmt-layout.json: the layouts the app uses (decision 128)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.frozen = json.loads(t.LAYOUT_FILE.read_text())
+
+    def test_version_and_choice(self):
+        self.assertEqual(self.frozen["layout_version"], t.LAYOUT_VERSION)
+        self.assertEqual(t.CHOSEN, {"a": 1, "b": 1, "practice_a": 1, "practice_b": 1})
+        self.assertEqual({kind: l["id"] for kind, l in self.frozen["layouts"].items()},
+                         {kind: f"{kind}-{variant}" for kind, variant in t.CHOSEN.items()})
+
+    def test_is_the_chosen_candidates_unchanged(self):
+        # A new layout needs a new version: the file must be exactly what
+        # freeze makes from the candidates.
+        self.assertEqual(self.frozen, t.freeze(load()))
+
+    def test_keeps_every_rule(self):
+        self.assertEqual(t.check_frozen(self.frozen, t.RULES), [])
+
+    def test_checker_catches_a_broken_file(self):
+        broken = copy.deepcopy(self.frozen)
+        broken["layouts"]["b"]["points"] = copy.deepcopy(self.frozen["layouts"]["a"]["points"])
+        self.assertTrue(any(p.startswith("b: ") for p in t.check_frozen(broken, t.RULES)))
+        del broken["layouts"]["practice_a"]
+        self.assertIn("practice_a: missing", t.check_frozen(broken, t.RULES))
+
+    def test_gap_between_circles_at_the_decided_size(self):
+        # Field 150 mm high, circles 11 mm (decision 127): every gap between
+        # circles is at least one diameter.
+        unit, circle = 150 / 100, 11
+        for kind, layout in self.frozen["layouts"].items():
+            gap = layout["metrics"]["min_distance"] * unit - circle
+            self.assertGreaterEqual(gap, circle, kind)
+
+
 class CheckerTest(unittest.TestCase):
     """Each broken layout must be reported, and for the right reason."""
 

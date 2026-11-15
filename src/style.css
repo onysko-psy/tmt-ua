@@ -188,11 +188,12 @@ body {
 
 .tmt-stage {
   display: flex;
+  box-sizing: border-box;
   min-width: 100%;
   min-height: 100%;
   width: max-content;
-  align-items: center;
-  justify-content: center;
+  align-items: safe center;
+  justify-content: safe center;
 }
 
 .tmt-field {
@@ -267,8 +268,7 @@ body {
 
 /* Trying a layout: before the click on the cross only the cross is seen. */
 
-.tmt-waiting .tmt-circle,
-.tmt-waiting .tmt-word {
+.tmt-waiting .tmt-circle {
   visibility: hidden;
 }
 
