@@ -266,7 +266,32 @@ body {
   opacity: 0.5;
 }
 
-/* Trying a layout: before the click on the cross only the cross is seen. */
+/* A run of a TMT field (tmt/run.js): the field alone in the middle of a
+   white page, as on paper. Below the fullscreen banner and the dev badge. If
+   the page is smaller than the field (fullscreen was left), it scrolls. */
+
+.tmt-run {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  overflow: auto;
+  align-items: safe center;
+  justify-content: safe center;
+  background: #fff;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+/* The arrow everywhere, also over the letters (text gets a text cursor by default). */
+
+.tmt-run * {
+  cursor: default;
+}
+
+/* Before the click on the cross only the cross and the hint are seen. */
 
 .tmt-waiting .tmt-circle {
   visibility: hidden;
@@ -278,6 +303,22 @@ body {
   fill: #fde8ea;
 }
 
+.tmt-start-hint,
+.tmt-corner-label {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  fill: #333;
+}
+
+.tmt-corner-label {
+  fill: #777;
+}
+
+.tmt-lead {
+  max-width: 40rem;
+  margin: 0 auto 1rem;
+  font: 1.1rem/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
 .tmt-trial-note {
   position: fixed;
   left: 0;
@@ -286,7 +327,7 @@ body {
   z-index: 10;
   margin: 0;
   text-align: center;
-  color: #333;
+  color: #777;
 }
 
 .tmt-trial-note[hidden] {

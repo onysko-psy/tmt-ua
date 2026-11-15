@@ -9,7 +9,7 @@
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-function el(name, attrs = {}, text = null) {
+export function svgEl(name, attrs = {}, text = null) {
   const node = document.createElementNS(SVG_NS, name);
   for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
   if (text !== null) node.textContent = text;
@@ -23,7 +23,7 @@ const mm = (x) => Number(x.toFixed(3));
 // (src/fonts/fonts.json), so the result does not depend on how a browser
 // aligns text vertically.
 export function label(text, x, y, heightMm, font, attrs = {}) {
-  return el(
+  return svgEl(
     'text',
     {
       x: mm(x),
@@ -52,7 +52,7 @@ export function label(text, x, y, heightMm, font, attrs = {}) {
 export function renderField(options) {
   const { layout, fieldMm, areaUnits, circleMm, letterMm, font, pxPerMm, style, show = {} } = options;
   const unit = fieldMm.h / 100;
-  const svg = el('svg', {
+  const svg = svgEl('svg', {
     class: 'tmt-field',
     width: mm(fieldMm.w * pxPerMm),
     height: mm(fieldMm.h * pxPerMm),
@@ -62,18 +62,18 @@ export function renderField(options) {
 
   if (show.border) {
     const frame = { fill: 'none', stroke: '#9aa', 'stroke-width': 0.25, 'stroke-dasharray': '2 2' };
-    svg.append(el('rect', { x: -fieldMm.w / 2, y: -fieldMm.h / 2, width: fieldMm.w, height: fieldMm.h, ...frame }));
+    svg.append(svgEl('rect', { x: -fieldMm.w / 2, y: -fieldMm.h / 2, width: fieldMm.w, height: fieldMm.h, ...frame }));
     if (areaUnits.w * unit < fieldMm.w) {
       const w = areaUnits.w * unit;
       const h = areaUnits.h * unit;
-      svg.append(el('rect', { x: mm(-w / 2), y: mm(-h / 2), width: mm(w), height: mm(h), ...frame }));
+      svg.append(svgEl('rect', { x: mm(-w / 2), y: mm(-h / 2), width: mm(w), height: mm(h), ...frame }));
     }
   }
 
   const points = layout.points.map(([x, y]) => [x * unit, y * unit]);
   if (show.path) {
     svg.append(
-      el('polyline', {
+      svgEl('polyline', {
         class: 'tmt-path',
         points: points.map(([x, y]) => `${mm(x)},${mm(y)}`).join(' '),
         fill: 'none',
@@ -85,11 +85,11 @@ export function renderField(options) {
   }
 
   points.forEach(([x, y], index) => {
-    const group = el('g', { class: 'tmt-circle' });
+    const group = svgEl('g', { class: 'tmt-circle' });
     group.dataset.index = index;
     group.dataset.label = layout.labels[index];
     group.append(
-      el('circle', {
+      svgEl('circle', {
         cx: mm(x),
         cy: mm(y),
         r: mm((circleMm - style.circleStrokeMm) / 2), // the outline stays inside the diameter
@@ -105,7 +105,7 @@ export function renderField(options) {
   if (show.cross) {
     const arm = style.crossMm / 2;
     svg.append(
-      el('path', {
+      svgEl('path', {
         class: 'tmt-cross',
         d: `M${-arm} 0H${arm}M0 ${-arm}V${arm}`,
         stroke: '#000',

@@ -7,6 +7,7 @@ import { renderDevMenu, createDevBadge, renderDevEnd } from './dev.js';
 import { renderEnvCheck } from './dev-env.js';
 import { renderTmtOptions } from './dev-tmt.js';
 import { taskScale } from './scale.js';
+import { loadTmtStimuli } from './tmt/stimuli.js';
 import { newSessionId, newParticipantCode } from './data/ids.js';
 import { deviceInfo } from './data/device.js';
 import { createSender } from './data/sender.js';
@@ -43,7 +44,7 @@ function withEnvironment(message, env) {
 // Marks the message of the block that ended the session early.
 const withStatus = (message, status) => ({ ...message, summary: { ...message?.summary, status } });
 
-function start() {
+async function start() {
   document.title = texts.common.pageTitle;
 
   const session = parseUrl(window.location.search);
@@ -73,6 +74,15 @@ function start() {
     blocks = selectBlocks(BLOCKS, session);
   } catch (error) {
     return showMessage(error.message);
+  }
+
+  // The layouts and the font of the TMT circles: without them the session
+  // does not start.
+  let stimuli;
+  try {
+    stimuli = { tmt: await loadTmtStimuli(params.tmt) };
+  } catch {
+    return showMessage(texts.errors.loadFailed);
   }
 
   // Until every block is built, main mode sends nothing, so the main
@@ -130,6 +140,7 @@ function start() {
     session,
     sender,
     monitor,
+    stimuli,
     calibration: null, // set by the calibration block: { pxPerMm, ... }
     // px per mm for a task: from the calibration; on dev links that skip it,
     // the last dev calibration in this browser or a fallback (scale.js).
@@ -161,4 +172,8 @@ function start() {
   jsPsych.run(timeline);
 }
 
-start();
+// The mark tells automated checks that the first screen is up: the stimuli
+// are loaded before it.
+start().finally(() => {
+  document.documentElement.dataset.tmtuaReady = '1';
+});

@@ -26,7 +26,10 @@ const EVENT_LABELS = {
   fs_enter: 'повернення в повноекранний режим',
   resize: 'зміна розміру вікна',
   zoom: 'зміна масштабу',
+  zoom_blocked: 'спробу змінити масштаб заблоковано',
 };
+
+const ZOOM_WAYS = { keys: 'клавіші', wheel: 'щипок або Ctrl і коліщатко', gesture: 'щипок' };
 
 // The digit a key stands for, by its place on the keyboard (top row or
 // numeric keypad), so that any layout works (decision 82); ' ' for space.
@@ -43,6 +46,7 @@ function describe(event) {
     text += ` · ${event.w}×${event.h}, вікно ${event.ow}×${event.oh}, dpr ${event.dpr}, масштаб ${event.scale}`;
     if (event.by_fullscreen) text += ' · через повноекранний режим, не рахується';
   }
+  if (event.type === 'zoom_blocked') text += ` · ${ZOOM_WAYS[event.how] ?? event.how}`;
   if (event.at_start) text += ' · уже на початку';
   return text;
 }
@@ -72,8 +76,10 @@ export function renderEnvCheck(session) {
 
       <h2>3. Що записав би монітор під час завдання</h2>
       <p>Спробуйте: перейти на іншу вкладку й назад, клікнути в іншу програму, вийти з
-        повноекранного режиму клавішею Esc, змінити масштаб (Cmd або Ctrl і «+», потім
-        «0»), змінити розмір вікна.</p>
+        повноекранного режиму клавішею Esc, змінити розмір вікна. Масштаб клавішами (Cmd або
+        Ctrl і «+», «−», «0») і щипком на тачпаді тут, як і під час завдань, заблоковано: сторінка
+        не має змінитися, а в списку має з’явитися заблокована спроба. Через меню браузера
+        («Перегляд» → «Збільшити») масштаб зміниться і запишеться як зміна масштабу.</p>
       <ol class="env-events"></ol>
     </main>`;
 

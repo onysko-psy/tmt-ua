@@ -11,7 +11,7 @@ import unittest
 
 from playwright.sync_api import expect
 
-from harness import AppTestCase
+from harness import AppTestCase, TMT_BLOCKS
 
 FAST = "&set.send.retryBaseMs=100&set.send.retryMaxMs=500"
 ENTER = "Увімкнути повноекранний режим"
@@ -38,10 +38,19 @@ class EnvironmentTestCase(AppTestCase):
         return message["summary"], message.get("log")
 
     def placeholder(self, page, label):
-        page.locator(".placeholder", has_text=label).wait_for()
+        """Waits for the first screen of a block: a placeholder, or the screen
+        before a TMT test."""
+        if label in TMT_BLOCKS.values():
+            self.tmt_lead(page, label).wait_for()
+        else:
+            page.locator(".placeholder", has_text=label).wait_for()
 
     def next(self, page):
-        page.get_by_role("button", name="Далі").click()
+        """Finishes the block on the screen; a TMT block is clicked through."""
+        if page.locator(".tmt-lead").count():
+            self.pass_tmt(page)
+        else:
+            page.get_by_role("button", name="Далі").click()
 
 
 class DeviceCheckTest(EnvironmentTestCase):
@@ -141,11 +150,15 @@ class FullscreenTest(EnvironmentTestCase):
                 self.assertEqual(a["tmt_a_zoom_n"], 0)
                 self.assertEqual([e["type"] for e in log["env"]["events"] if e["type"].startswith("fs")],
                                  ["fs_exit", "fs_enter", "fs_exit"])
+                # The test itself ran out of fullscreen from its start (decision 133).
+                self.assertEqual(a["tmt_a_test_fs_exit_n"], 1)
                 b, _ = self.summary_of(receiver, "tmt_b")
                 self.assertEqual(b["tmt_b_fs_exit_n"], 0)  # the gate's time is outside the task
+                self.assertEqual(b["tmt_b_test_fs_exit_n"], 0)
                 for task in TASK_IDS:
                     task_summary, task_log = self.summary_of(receiver, task)
-                    self.assertEqual(task_summary[f"{task}_placeholder"], 1)
+                    if task not in TMT_BLOCKS:
+                        self.assertEqual(task_summary[f"{task}_placeholder"], 1)
                     self.assertIn("events", task_log["env"])
                 post, post_log = self.summary_of(receiver, "post")
                 self.assertEqual(post, {"post_placeholder": 1})  # questionnaires are not monitored
@@ -263,8 +276,11 @@ class MonitorTest(EnvironmentTestCase):
                 self.assertEqual(summary["tmt_a_fs_exit_n"], 0)
                 self.assertEqual(summary["tmt_a_touch_n"], 0)
                 self.assertEqual([e["type"] for e in log["env"]["events"]],
-                                 ["blur", "hidden", "visible", "focus", "blur", "focus"])
-                self.assertEqual(log["env"]["pointer"], {"mouse": 1})  # the click on "Далі"
+                                 ["blur", "hidden", "visible", "focus", "blur", "focus", "test_start", "test_end"])
+                # All of it happened before the test itself (decisions 133, 135).
+                for key in ["hidden_n", "hidden_ms", "blur_n", "blur_ms", "fs_exit_n", "fs_exit_ms"]:
+                    self.assertEqual(summary[f"tmt_a_test_{key}"], 0, key)
+                self.assertEqual(log["env"]["pointer"], {"mouse": 27})  # "Почати", the cross, 25 circles
                 self.assert_valid_for_receiver(context, receiver.accepted)
                 self.assertEqual(errors, [])
 
@@ -272,23 +288,23 @@ class MonitorTest(EnvironmentTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver = self.new_context(browser)
-                page, errors = self.open(browser, "?mode=dev&start=tmt_a" + FAST, context=context)
-                self.placeholder(page, "TMT, частина A")
+                page, errors = self.open(browser, "?mode=dev&start=coding" + FAST, context=context)
+                self.placeholder(page, "Кодування символів")
                 page.evaluate("() => window.dispatchEvent(new Event('blur'))")
                 page.wait_for_timeout(300)
                 # A time limit ends the task while the participant is away.
                 page.evaluate("() => window.tmtua.jsPsych.finishTrial()")
-                self.placeholder(page, "TMT, частина B")
+                self.placeholder(page, "Stroop")
                 page.wait_for_timeout(300)
                 page.evaluate("() => window.dispatchEvent(new Event('focus'))")
                 self.next(page)
                 self.wait_delivered(page)
-                a, _ = self.summary_of(receiver, "tmt_a")
-                b, b_log = self.summary_of(receiver, "tmt_b")
-                self.assertEqual(a["tmt_a_blur_n"], 1)
-                self.assertGreaterEqual(a["tmt_a_blur_ms"], 250)
-                self.assertEqual(b["tmt_b_blur_n"], 1)  # still away when B started
-                self.assertGreaterEqual(b["tmt_b_blur_ms"], 250)
+                a, _ = self.summary_of(receiver, "coding")
+                b, b_log = self.summary_of(receiver, "stroop")
+                self.assertEqual(a["coding_blur_n"], 1)
+                self.assertGreaterEqual(a["coding_blur_ms"], 250)
+                self.assertEqual(b["stroop_blur_n"], 1)  # still away when the next task started
+                self.assertGreaterEqual(b["stroop_blur_ms"], 250)
                 self.assertTrue(b_log["env"]["events"][0]["at_start"])
                 self.assertEqual(errors, [])
 
@@ -310,7 +326,7 @@ class MonitorTest(EnvironmentTestCase):
                 self.wait_delivered(page)
                 summary, log = self.summary_of(receiver, "tmt_a")
                 events = log["env"]["events"]
-                self.assertEqual([e["type"] for e in events], ["resize", "zoom"], events)
+                self.assertEqual([e["type"] for e in events], ["resize", "zoom", "test_start", "test_end"], events)
                 self.assertEqual((events[0]["w"], events[0]["h"]), (1000, 650))
                 self.assertEqual(events[1]["dpr"], 3)
                 self.assertEqual(summary["tmt_a_resize_n"], 1)
@@ -338,12 +354,12 @@ class MonitorTest(EnvironmentTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver = self.new_context(browser, has_touch=True)
-                page, errors = self.open(browser, "?mode=dev&only=tmt_a" + FAST, context=context)
-                self.placeholder(page, "TMT, частина A")
+                page, errors = self.open(browser, "?mode=dev&only=coding" + FAST, context=context)
+                self.placeholder(page, "Кодування символів")
                 page.get_by_role("button", name="Далі").tap()
                 self.wait_delivered(page)
-                summary, log = self.summary_of(receiver, "tmt_a")
-                self.assertEqual(summary["tmt_a_touch_n"], 1)
+                summary, log = self.summary_of(receiver, "coding")
+                self.assertEqual(summary["coding_touch_n"], 1)
                 self.assertEqual(log["env"]["pointer"], {"touch": 1})
                 self.assertEqual(errors, [])
 

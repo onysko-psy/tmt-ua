@@ -55,12 +55,12 @@ class AppShellTest(AppTestCase):
     def test_dev_only_runs_one_block_and_dumps_data(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
-                page, errors = self.open(browser, "?mode=dev&only=tmt_a")
-                expect(page.locator(".placeholder")).to_contain_text("TMT, частина A")
+                page, errors = self.open(browser, "?mode=dev&only=coding")
+                expect(page.locator(".placeholder")).to_contain_text("Кодування символів")
                 expect(page.locator(".dev-badge")).to_be_visible()
                 page.get_by_role("button", name="Далі").click()
                 data = json.loads(page.locator(".dev-end pre").text_content())
-                self.assertEqual([row["block"] for row in data], ["tmt_a"])
+                self.assertEqual([row["block"] for row in data], ["coding"])
                 self.assertEqual(data[0]["mode"], "dev")
                 self.assertEqual(data[0]["app_version"], self.module(page, "config.js")["APP_VERSION"])
                 self.assertEqual(errors, [])
@@ -79,7 +79,7 @@ class AppShellTest(AppTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors = self.open(browser, "?mode=dev&only=tmt_a&set.tmt.timeLimitMs=20000")
-                expect(page.locator(".placeholder")).to_be_visible()
+                expect(page.locator(".tmt-lead")).to_be_visible()
                 self.assertEqual(page.evaluate("window.tmtua.params.tmt.timeLimitMs"), 20000)
                 self.assertEqual(errors, [])
 

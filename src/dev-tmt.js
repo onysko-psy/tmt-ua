@@ -1,8 +1,10 @@
 import { PARAMS } from './config.js';
+import { texts } from './texts.uk.js';
 import { devUrl } from './dev.js';
 import { devScale } from './scale.js';
 import { enterFullscreen, exitFullscreen, fullscreenSupported, isFullscreen, onFullscreenChange } from './fullscreen.js';
 import { renderField, label, pathLengthMm, minGapMm } from './tmt/field.js';
+import { runTmt } from './tmt/run.js';
 import { LAYOUT_URL, STYLE, PARTS, loadFonts } from './tmt/stimuli.js';
 
 // Dev page ?mode=dev&tool=tmt (T1.1). Shows the TMT stimuli as decided —
@@ -12,10 +14,10 @@ import { LAYOUT_URL, STYLE, PARTS, loadFonts } from './tmt/stimuli.js';
 // browser (scale.js); without one they are only approximate, and the page
 // says so. Nothing is sent anywhere.
 //
-// "Try it" lets him click through a layout to feel it under a mouse or a
-// touchpad: start on the cross, a right click draws the line, a wrong circle
-// turns red until the next right one (decisions 59, 63). It is a rough
-// preview of the behaviour, not the TMT plugin (T1.2), and records nothing.
+// "Try it" runs a layout exactly as the TMT plugin does (tmt/run.js, T1.2),
+// to feel it under a mouse or a touchpad: start on the cross, a right click
+// draws the line, a wrong circle turns red until the next right one. It
+// shows the counts afterwards and records nothing.
 
 const CHOICE_KEY = 'tmtua.dev.tmtChoice';
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -129,15 +131,16 @@ export async function renderTmtOptions(session, params = PARAMS) {
   const choice = loadChoice();
   const scale = devScale();
   let panelHidden = false;
-  let trial = null; // while trying a layout: { next, errors, misses, startedAt }
+  let run = null; // while trying a layout: the run of tmt/run.js
   let trialResult = ''; // shown in the panel after a finished try
+  const handle = { lastRun: null }; // the result of the last try, for automated checks
 
   document.body.innerHTML = `
     <main class="dev-tmt">
       <div class="tmt-panel"></div>
       <div class="tmt-stage"></div>
       <button type="button" class="tmt-panel-show" hidden>Показати панель (H)</button>
-      <p class="tmt-trial-note" hidden>Клікніть по хрестику, щоб почати, далі — по кружечках по порядку. Esc — скасувати.</p>
+      <p class="tmt-trial-note" hidden>Esc — скасувати спробу.</p>
     </main>`;
   const panel = document.querySelector('.tmt-panel');
   const stage = document.querySelector('.tmt-stage');
@@ -226,7 +229,8 @@ export async function renderTmtOptions(session, params = PARAMS) {
   // Any redraw ends a try that is under way: the field is drawn anew.
   const draw = () => {
     const c = current();
-    trial = null;
+    run?.cancel();
+    run = null;
     trialNote.hidden = true;
     drawPanel(c);
     panel.hidden = panelHidden;
@@ -241,73 +245,51 @@ export async function renderTmtOptions(session, params = PARAMS) {
     saveChoice(choice);
   };
 
-  const finishTrial = (c) => {
-    const seconds = (performance.now() - trial.startedAt) / 1000;
+  const showResult = (c, result) => {
+    handle.lastRun = result;
+    const outcome =
+      result.status === 'timeout'
+        ? `ліміт часу (${num(result.time_ms / 1000, 0)} с), пройдено ${result.targets_done} з ${result.targets_total}`
+        : `${num(result.time_ms / 1000)} с`;
     trialResult =
-      `Спроба ${c.layout.id}: ${num(seconds)} с, помилок ${trial.errors}, кліків повз ${trial.misses}. ` +
-      'Це чернетка поведінки, не сам тест: нічого не записується.';
-    trial = null;
+      `Спроба ${c.layout.id}: ${outcome}, помилок ${result.errors_n} (не та ціль ${result.err_wrong_target_n}, ` +
+      `чергування ${result.err_alternation_n}), повторних кліків ${result.repeat_n}, кліків повз ${result.miss_n}, ` +
+      `точок траєкторії ${result.trajectory.length}. Нічого не записується.`;
     panelHidden = false;
-    drawPanel(c); // the field with its lines stays until the next change
-    panel.hidden = false;
-    showButton.hidden = true;
+    draw();
   };
 
-  const onTrialClick = (event, view, c) => {
-    if (!trial) return;
-    const rect = view.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / scale.pxPerMm - c.fieldMm.w / 2;
-    const y = (event.clientY - rect.top) / scale.pxPerMm - c.fieldMm.h / 2;
-    if (trial.next === -1) {
-      if (Math.hypot(x, y) > STYLE.crossMm / 2 + 1) return;
-      trial.next = 0;
-      trial.startedAt = performance.now();
-      view.classList.remove('tmt-waiting');
-      view.querySelector('.tmt-cross').remove();
-      trialNote.hidden = true;
-      return;
-    }
-    const circle = event.target.closest('.tmt-circle');
-    if (!circle) {
-      trial.misses += 1; // counted apart, not an error (decision 63)
-      return;
-    }
-    const index = Number(circle.dataset.index);
-    if (index < trial.next) return; // already connected
-    if (index > trial.next) {
-      trial.errors += 1;
-      circle.classList.add('tmt-wrong');
-      return;
-    }
-    for (const wrong of view.querySelectorAll('.tmt-wrong')) wrong.classList.remove('tmt-wrong');
-    if (index > 0) {
-      const unit = c.fieldMm.h / 100;
-      const [x0, y0] = c.layout.points[index - 1];
-      const [x1, y1] = c.layout.points[index];
-      const line = document.createElementNS(SVG_NS, 'line');
-      for (const [key, value] of Object.entries({ x1: x0 * unit, y1: y0 * unit, x2: x1 * unit, y2: y1 * unit })) {
-        line.setAttribute(key, value);
-      }
-      line.setAttribute('class', 'tmt-trial-line');
-      line.setAttribute('stroke', '#000');
-      line.setAttribute('stroke-width', STYLE.lineMm);
-      view.insertBefore(line, view.querySelector('.tmt-circle'));
-    }
-    trial.next += 1;
-    if (trial.next === c.layout.points.length) finishTrial(c);
-  };
-
+  // The same run as in a session: sizes, limit and trajectory rate from the
+  // parameters; the practice parts have no limit.
   const startTrial = () => {
     if (choice.part === 'letters') return;
     trialResult = '';
     panelHidden = true;
     draw();
     const c = current();
-    const view = fieldView(c, { ...choice.show, path: false, cross: true });
-    view.classList.add('tmt-waiting');
-    view.addEventListener('pointerdown', (event) => onTrialClick(event, view, c));
-    stage.replaceChildren(view);
-    trial = { next: -1, errors: 0, misses: 0, startedAt: null };
+    const practice = c.part.startsWith('practice');
+    const started = runTmt(stage, {
+      part: c.part,
+      layout: c.layout,
+      fieldMm: c.fieldMm,
+      areaUnits: data.fields[c.part],
+      circleMm: c.circleMm,
+      letterMm: c.letterMm,
+      font: c.font,
+      pxPerMm: scale.pxPerMm,
+      style: STYLE,
+      timeLimitMs: practice ? null : params.tmt.timeLimitMs,
+      trajectoryHz: params.tmt.trajectoryHz,
+      startHint: texts.tmt.startHint,
+      cornerLabel: practice ? texts.tmt.practiceLabel : '',
+      showBorder: choice.show.border,
+    });
+    run = started;
+    started.promise.then((result) => {
+      if (run !== started) return; // given up or replaced meanwhile
+      run = null;
+      if (result) showResult(c, result);
+    });
     trialNote.hidden = false;
     showButton.hidden = true; // it lies over the field corner; Esc brings the panel back
   };
@@ -347,7 +329,7 @@ export async function renderTmtOptions(session, params = PARAMS) {
       return draw();
     }
     if (event.code === 'KeyT') return startTrial();
-    if (event.key === 'Escape' && trial) {
+    if (event.key === 'Escape' && run) {
       panelHidden = false;
       return draw();
     }
@@ -361,6 +343,6 @@ export async function renderTmtOptions(session, params = PARAMS) {
   if (fullscreenSupported()) onFullscreenChange(draw);
 
   // Handle for automated checks.
-  window.tmtuaOptions = { choice, scale, data, fonts, sizes, current };
+  window.tmtuaOptions = Object.assign(handle, { choice, scale, data, fonts, sizes, current });
   draw();
 }

@@ -10,7 +10,7 @@ import unittest
 
 from playwright.sync_api import expect
 
-from harness import AppTestCase
+from harness import AppTestCase, TMT_POINTS
 
 PX_PER_MM = 380 / 85.6  # harness.calibrate() sets the card to 380 px
 FALLBACK = 96 / 25.4
@@ -102,7 +102,7 @@ class TmtOptionsTest(AppTestCase):
 
                 # A dev link that skips the calibration block gets the same scale.
                 page.goto(self.base + "?mode=dev&only=tmt_a")
-                page.locator(".placeholder").wait_for()
+                page.locator(".tmt-lead").wait_for()
                 scale = page.evaluate("window.tmtua.ctx.scale()")
                 self.assertEqual(scale["source"], "dev_saved")
                 self.assertAlmostEqual(scale["pxPerMm"], PX_PER_MM, places=6)
@@ -112,7 +112,7 @@ class TmtOptionsTest(AppTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors = self.open(browser, "?mode=dev&only=tmt_a")
-                page.locator(".placeholder").wait_for()
+                page.locator(".tmt-lead").wait_for()
                 scale = page.evaluate("window.tmtua.ctx.scale()")
                 self.assertEqual(scale["source"], "fallback")
                 self.assertAlmostEqual(scale["pxPerMm"], FALLBACK, places=6)
@@ -190,45 +190,67 @@ class TmtOptionsTest(AppTestCase):
         self.assertEqual(errors, [])
 
     def test_trying_a_layout(self):
+        """"Try it" is the same run as in a session (tmt/run.js); the run
+        itself is checked in test_tmt.py."""
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, receiver = self.open_tool(browser)
                 page.get_by_role("button", name="Пробна B").click()
                 page.keyboard.press("t")
                 expect(page.locator(".tmt-panel")).to_be_hidden()
-                expect(page.locator(".tmt-circle").first).to_be_hidden()
+                page.locator(".tmt-run").wait_for()
+                expect(page.locator(".tmt-run .tmt-circle").first).to_be_hidden()
+                expect(page.locator(".tmt-start-hint")).to_have_text("Клацніть хрестик, щоб почати")
+                expect(page.locator(".tmt-corner-label")).to_have_text("Пробна спроба")
                 expect(page.locator(".tmt-trial-note")).to_be_visible()
 
-                field = page.locator(".tmt-field").bounding_box()
-                centre = (field["x"] + field["width"] / 2, field["y"] + field["height"] / 2)
-                page.mouse.click(field["x"] + 5, field["y"] + 5)  # not the cross: nothing starts
-                expect(page.locator(".tmt-circle").first).to_be_hidden()
-                page.mouse.click(*centre)
-                expect(page.locator(".tmt-circle").first).to_be_visible()
+                points = page.evaluate(TMT_POINTS)
+                circles = points["circles"]
+                self.assertEqual(len(circles), 8)
+                page.mouse.click(*points["corner"])  # not the cross: nothing starts
+                expect(page.locator(".tmt-run .tmt-circle").first).to_be_hidden()
+                page.mouse.click(*points["cross"])
+                expect(page.locator(".tmt-run .tmt-circle").first).to_be_visible()
                 self.assertEqual(page.locator(".tmt-cross").count(), 0)
 
-                circles = page.locator(".tmt-circle")
-                circles.nth(0).click()
-                circles.nth(2).click()  # 2 instead of А
+                page.mouse.click(*circles[0])
+                page.mouse.click(*circles[2])  # 2 instead of А
                 self.assertEqual(page.locator(".tmt-wrong").count(), 1)
-                self.assertEqual(page.locator(".tmt-trial-line").count(), 0)
-                page.mouse.click(field["x"] + 5, field["y"] + 5)  # beside the circles
-                circles.nth(1).click()
+                self.assertEqual(page.locator(".tmt-line").count(), 0)
+                page.mouse.click(*points["corner"])  # beside the circles
+                page.mouse.click(*circles[1])
                 self.assertEqual(page.locator(".tmt-wrong").count(), 0)
-                self.assertEqual(page.locator(".tmt-trial-line").count(), 1)
-                circles.nth(0).click()  # already connected: ignored
-                for index in range(2, 8):
-                    circles.nth(index).click()
-                self.assertEqual(page.locator(".tmt-trial-line").count(), 7)
+                self.assertEqual(page.locator(".tmt-line").count(), 1)
+                page.mouse.click(*circles[1])  # the circle the line ends at: not an error
+                for point in circles[2:]:
+                    page.mouse.click(*point)
                 expect(page.locator(".tmt-panel")).to_be_visible()
-                expect(page.locator(".tmt-trial-result")).to_contain_text("помилок 1, кліків повз 1")
+                expect(page.locator(".tmt-trial-result")).to_contain_text(
+                    "помилок 1 (не та ціль 0, чергування 1), повторних кліків 1, кліків повз 1")
+                self.assertEqual(page.locator(".tmt-run").count(), 0)  # the plain view is back
+                result = page.evaluate("window.tmtuaOptions.lastRun")
+                self.assertEqual((result["part"], result["status"], result["time_limit_ms"]),
+                                 ("practice_b", "complete", None))  # the practice has no limit
                 self.assertEqual(receiver.requests, [])
 
                 # Esc gives up a try and brings the plain view back.
                 page.keyboard.press("t")
+                page.locator(".tmt-run").wait_for()
                 page.keyboard.press("Escape")
                 expect(page.locator(".tmt-panel")).to_be_visible()
+                self.assertEqual(page.locator(".tmt-run").count(), 0)
                 expect(page.locator(".tmt-circle").first).to_be_visible()
+
+                # A test part stops at the time limit, as in a session.
+                page.goto(self.base + TOOL + "&set.tmt.timeLimitMs=600")
+                page.locator(".tmt-field").wait_for()
+                page.get_by_role("button", name="A", exact=True).click()
+                page.keyboard.press("t")
+                page.locator(".tmt-run").wait_for()
+                points = page.evaluate(TMT_POINTS)
+                page.mouse.click(*points["cross"])
+                page.mouse.click(*points["circles"][0])
+                expect(page.locator(".tmt-trial-result")).to_contain_text("ліміт часу (1 с), пройдено 1 з 25")
                 self.assertEqual(errors, [])
 
     def test_field_that_does_not_fit_is_reported(self):

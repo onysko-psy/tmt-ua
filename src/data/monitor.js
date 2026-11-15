@@ -6,11 +6,27 @@ import { fullscreenWanted, isFullscreen, onFullscreenChange } from '../fullscree
 // page scale, and whether clicks come from a cursor or a finger. The task
 // itself goes on; whether to exclude anything is decided in the analysis.
 //
+// While a task runs, changing the page scale with the keys or a pinch is
+// blocked, and each try is recorded (decision 132): stimulus sizes are set
+// in mm by the calibration, and a stray pinch on a touchpad would break them.
+// A scale changed in another way (the browser's menu) is still recorded as a
+// zoom.
+//
+// A task can mark a span inside itself — in TMT the test proper, from the
+// click on the cross to the last circle — and get the exits counted for that
+// span alone (decisions 133, 135).
+//
 // The browser reports a mouse and a touchpad alike ('mouse'), so which one
 // the participant uses is asked in the questionnaire.
 
 const SETTLE_MS = 400; // dragging a window edge fires dozens of resize events
 const FULLSCREEN_RESIZE_MS = 1500; // a resize this close to a fullscreen change is part of it
+const GESTURE_GAP_MS = 500; // wheel events of one pinch come closer together than this
+
+// Keys that change the page scale together with Cmd or Ctrl: by their place
+// on the keyboard and by the character, so that any layout works.
+const ZOOM_CODES = new Set(['Equal', 'Minus', 'Digit0', 'NumpadAdd', 'NumpadSubtract', 'Numpad0']);
+const ZOOM_CHARS = new Set(['+', '=', '-', '_', '0']);
 
 // Each interval: [event name when it starts, event name when it ends].
 const INTERVALS = {
@@ -55,6 +71,8 @@ export function createMonitor({ onEvent } = {}) {
     fs_exit: false,
   };
   let block = null;
+  let span = null; // a marked part of the task: { name, intervals }
+  let lastBlockedWheel = -Infinity;
   let settled = windowSnapshot();
   let settleTimer = null;
   let lastFullscreenChange = -Infinity;
@@ -73,15 +91,59 @@ export function createMonitor({ onEvent } = {}) {
     state[kind] = on;
     if (!block) return;
     const t = now();
-    const interval = block.intervals[kind];
-    if (on) {
-      interval.n += 1;
-      interval.since = t;
-    } else if (interval.since !== null) {
-      interval.ms += t - interval.since;
-      interval.since = null;
+    for (const intervals of [block.intervals, span?.intervals]) {
+      const interval = intervals?.[kind];
+      if (!interval) continue;
+      if (on) {
+        interval.n += 1;
+        interval.since = t;
+      } else if (interval.since !== null) {
+        interval.ms += t - interval.since;
+        interval.since = null;
+      }
     }
     record(t, { type: INTERVALS[kind][on ? 0 : 1] });
+  }
+
+  // Counters for the task or a span starting at t0. Something already going
+  // on then counts as one exit from the start.
+  function freshIntervals(t0) {
+    const intervals = {};
+    for (const kind of Object.keys(INTERVALS)) {
+      intervals[kind] = state[kind] ? { n: 1, ms: 0, since: t0 } : { n: 0, ms: 0, since: null };
+    }
+    return intervals;
+  }
+
+  // A try to change the page scale that was stopped (decision 132).
+  function blocked(how) {
+    block.zoomBlocked += 1;
+    record(now(), { type: 'zoom_blocked', how });
+  }
+
+  function onZoomKey(event) {
+    if (!block || !(event.ctrlKey || event.metaKey) || event.altKey) return;
+    if (!ZOOM_CODES.has(event.code) && !ZOOM_CHARS.has(event.key)) return;
+    event.preventDefault();
+    if (!event.repeat) blocked('keys');
+  }
+
+  // Chrome, Edge and Firefox report a pinch on a touchpad as wheel events
+  // with ctrlKey set, the same as a wheel turned with Ctrl held. One pinch is
+  // many such events; they count as one try.
+  function onZoomWheel(event) {
+    if (!block || !(event.ctrlKey || event.metaKey)) return;
+    event.preventDefault();
+    const t = now();
+    if (t - lastBlockedWheel > GESTURE_GAP_MS) blocked('wheel');
+    lastBlockedWheel = t;
+  }
+
+  // Safari reports a pinch on a touchpad with its own gesture events.
+  function onGesture(event) {
+    if (!block) return;
+    event.preventDefault();
+    if (event.type === 'gesturestart') blocked('gesture');
   }
 
   function settle() {
@@ -124,6 +186,11 @@ export function createMonitor({ onEvent } = {}) {
   onFullscreenChange(fullscreenChanged);
   window.addEventListener('resize', scheduleSettle);
   window.visualViewport?.addEventListener('resize', scheduleSettle);
+  window.addEventListener('keydown', onZoomKey, true);
+  window.addEventListener('wheel', onZoomWheel, { passive: false, capture: true });
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
+    window.addEventListener(type, onGesture, { passive: false, capture: true });
+  }
   window.addEventListener(
     'pointerdown',
     (event) => {
@@ -142,7 +209,7 @@ export function createMonitor({ onEvent } = {}) {
 
   // Something already going on when the task starts (e.g. the previous task
   // ran out of time while the tab was hidden) counts as one exit from the
-  // start of this task. Likewise a task that starts at another scale than
+  // start of this task (freshIntervals). Likewise a task that starts at another scale than
   // the calibration was made at counts one zoom: the scale may have changed
   // between tasks, where nothing is watched.
   function startBlock(id) {
@@ -156,23 +223,46 @@ export function createMonitor({ onEvent } = {}) {
       startedAt: new Date().toISOString(),
       window: windowSnapshot(),
       events: [],
-      intervals: {},
+      intervals: freshIntervals(t0),
       resize: 0,
       zoom: 0,
+      zoomBlocked: 0,
       pointer: {},
     };
+    span = null;
     for (const kind of Object.keys(INTERVALS)) {
-      block.intervals[kind] = { n: 0, ms: 0, since: null };
-      if (state[kind]) {
-        block.intervals[kind] = { n: 1, ms: 0, since: t0 };
-        record(t0, { type: INTERVALS[kind][0], at_start: true });
-      }
+      if (state[kind]) record(t0, { type: INTERVALS[kind][0], at_start: true });
     }
     const current = windowSnapshot();
     if (baseline && (current.dpr !== baseline.dpr || current.scale !== baseline.scale)) {
       block.zoom += 1;
       record(t0, { type: 'zoom', ...current, at_start: true, since_calibration: true });
     }
+  }
+
+  // Marks the start of a part of the running task, e.g. 'test'.
+  function startSpan(name) {
+    if (!block) return;
+    const t = now();
+    span = { name, intervals: freshIntervals(t) };
+    record(t, { type: `${name}_start` });
+  }
+
+  // Ends the span and returns its counts: { hidden_n, hidden_ms, blur_n,
+  // blur_ms, fs_exit_n, fs_exit_ms }, or null if no span was open.
+  function endSpan() {
+    if (!block || !span) return null;
+    const t = now();
+    const done = span;
+    span = null;
+    record(t, { type: `${done.name}_end` });
+    const counts = {};
+    for (const [kind, interval] of Object.entries(done.intervals)) {
+      if (interval.since !== null) interval.ms += t - interval.since;
+      counts[`${kind}_n`] = interval.n;
+      counts[`${kind}_ms`] = Math.round(interval.ms);
+    }
+    return counts;
   }
 
   // Returns { summary, log } for the task, with column names prefixed by its id.
@@ -182,6 +272,7 @@ export function createMonitor({ onEvent } = {}) {
     const t = now();
     const done = block;
     block = null;
+    span = null;
     const p = `${done.id}_`;
     const summary = {};
     for (const [kind, interval] of Object.entries(done.intervals)) {
@@ -191,6 +282,7 @@ export function createMonitor({ onEvent } = {}) {
     }
     summary[`${p}resize_n`] = done.resize;
     summary[`${p}zoom_n`] = done.zoom;
+    summary[`${p}zoom_blocked_n`] = done.zoomBlocked;
     summary[`${p}touch_n`] = Object.entries(done.pointer)
       .filter(([type]) => type !== 'mouse')
       .reduce((sum, [, n]) => sum + n, 0);
@@ -204,5 +296,5 @@ export function createMonitor({ onEvent } = {}) {
     return { summary, log };
   }
 
-  return { setBaseline, startBlock, endBlock, active: () => block?.id ?? null };
+  return { setBaseline, startBlock, endBlock, startSpan, endSpan, active: () => block?.id ?? null };
 }

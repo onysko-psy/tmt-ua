@@ -32,3 +32,17 @@ export async function loadFonts(ids = null) {
   );
   return wanted;
 }
+
+// What the TMT blocks need: the layouts file and the font of the circles
+// (PARAMS.tmt.font). Loaded before the session starts, so that a failed
+// download shows at once and not in the middle of a session.
+export async function loadTmtStimuli(tmtParams) {
+  const [layout, fonts] = await Promise.all([
+    fetch(LAYOUT_URL).then((response) => {
+      if (!response.ok) throw new Error(`${LAYOUT_URL}: ${response.status}`);
+      return response.json();
+    }),
+    loadFonts([tmtParams.font]),
+  ]);
+  return { layout, font: fonts[0] };
+}

@@ -27,6 +27,24 @@ navigator.sendBeacon = (url, blob) => {
 };"""
 
 
+# Where to click in a TMT field that is on the page, in page px: the cross,
+# an empty corner of the field, and the centre of every circle in path order.
+TMT_POINTS = """() => {
+    const svg = document.querySelector('.tmt-run .tmt-field');
+    const field = svg.getBoundingClientRect();
+    return {
+        cross: [field.left + field.width / 2, field.top + field.height / 2],
+        corner: [field.left + 3, field.top + 3],
+        circles: [...svg.querySelectorAll('.tmt-circle circle')].map(circle => {
+            const box = circle.getBoundingClientRect();
+            return [box.left + box.width / 2, box.top + box.height / 2];
+        }),
+    };
+}"""
+
+TMT_BLOCKS = {"tmt_a": "TMT, частина A", "tmt_b": "TMT, частина B"}
+
+
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args):
         pass
@@ -118,6 +136,8 @@ class AppTestCase(unittest.TestCase):
                 route.fulfill(response=response, body=response.text() + "\n;")
             page.route("**/jspsych@*/dist/*.js", tamper)
         page.goto(self.base + query)
+        # The app loads its stimuli before the first screen (main.js).
+        page.wait_for_function("() => document.documentElement.dataset.tmtuaReady === '1'")
         return page, errors
 
     def module(self, page, path):
@@ -129,8 +149,37 @@ class AppTestCase(unittest.TestCase):
 
     def click_through(self, page, labels):
         for label in labels:
+            if label in TMT_BLOCKS.values():
+                self.pass_tmt(page, label)
+                continue
             page.locator(".placeholder", has_text=label).wait_for()
             page.get_by_role("button", name="Далі").click()
+
+    def tmt_lead(self, page, label):
+        """The screen before a TMT test (a stand-in for the instructions until T1.3)."""
+        return page.locator(".tmt-lead", has_text=label)
+
+    def start_tmt(self, page, label=None):
+        """From the screen before a TMT test to the field with the cross;
+        returns where to click (TMT_POINTS)."""
+        if label:
+            self.tmt_lead(page, label).wait_for()
+        page.get_by_role("button", name="Почати").click()
+        page.locator(".tmt-run").wait_for()
+        return page.evaluate(TMT_POINTS)
+
+    def click_tmt(self, page, points, order=None):
+        """The bot: clicks the cross, then the circles with these indexes (all
+        in path order by default); None in the order is a click beside the
+        circles."""
+        page.mouse.click(*points["cross"])
+        for index in range(len(points["circles"])) if order is None else order:
+            page.mouse.click(*(points["corner"] if index is None else points["circles"][index]))
+
+    def pass_tmt(self, page, label=None):
+        """Gets through a TMT block without errors."""
+        self.click_tmt(page, self.start_tmt(page, label))
+        page.locator(".tmt-run").wait_for(state="detached")
 
     def session_blocks(self, page):
         """(id, label, is a placeholder) of every block, in session order."""
@@ -162,6 +211,8 @@ class AppTestCase(unittest.TestCase):
                 page.get_by_role("button", name="Далі").click()
         elif block_id == "fullscreen":
             page.get_by_role("button", name="Увімкнути повноекранний режим").click()
+        elif block_id in TMT_BLOCKS:
+            self.pass_tmt(page, label)
         elif block_id != "device_check":  # an accepted device sees no screen
             raise AssertionError(f"no way through block {block_id}")
 

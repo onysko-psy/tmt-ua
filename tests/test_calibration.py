@@ -67,9 +67,8 @@ class CalibrationTest(CalibrationTestCase):
                 self.assertAlmostEqual(box["height"], 100 * PX_PER_MM, delta=1)
                 self.next(page)
                 page.get_by_role("button", name=ENTER).click()
-                page.locator(".placeholder", has_text="TMT, частина A").wait_for()
-                self.next(page)
-                page.locator(".placeholder", has_text="TMT, частина B").wait_for()
+                self.pass_tmt(page, "TMT, частина A")
+                self.tmt_lead(page, "TMT, частина B").wait_for()
                 self.wait_delivered(page)
 
                 calibration = self.message(receiver, "calibration")
@@ -264,7 +263,7 @@ class ScreenSizeTest(CalibrationTestCase):
                 expect(page.locator(".screen")).to_contain_text("Вікно браузера замале")
                 page.set_viewport_size({"width": 1280, "height": 720})
                 page.get_by_role("button", name=RECHECK).click()
-                page.locator(".placeholder", has_text="TMT, частина A").wait_for()
+                self.tmt_lead(page, "TMT, частина A").wait_for()
                 self.wait_delivered(page)
                 summary = self.message(receiver, "fullscreen")["summary"]
                 self.assertEqual(summary["fullscreen_status"], "failed")
@@ -299,9 +298,8 @@ class ZoomSinceCalibrationTest(CalibrationTestCase):
                 self.next(page)
                 page.evaluate(zoom)  # zoomed between calibration and the first task
                 page.get_by_role("button", name=ENTER).click()
-                page.locator(".placeholder", has_text="TMT, частина A").wait_for()
-                self.next(page)
-                page.locator(".placeholder", has_text="TMT, частина B").wait_for()
+                self.pass_tmt(page, "TMT, частина A")
+                self.tmt_lead(page, "TMT, частина B").wait_for()
                 self.wait_delivered(page)
                 a = self.message(receiver, "tmt_a")
                 self.assertEqual(a["summary"]["tmt_a_zoom_n"], 1)
