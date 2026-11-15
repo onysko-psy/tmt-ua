@@ -7,16 +7,14 @@ characters the app needs (digits, Latin, the Ukrainian alphabet, punctuation).
 The modified files get their own family name ("... TMT"), and the licence of
 each font is copied next to it.
 
-Why these fonts: the digit 3 has a flat top, so it differs from the letter З
-(decision 121), and digits are as tall as capitals. Inter was offered first,
-with its flat-top 3 made the default, but the author found З and 3 too alike
-in it (decision 130). Fonts tried and left out, with the reasons, are listed
-in docs/14 (T1.1) of the research repo.
+The font is Montserrat SemiBold (weight 600; decision 131): its digit 3 has
+a flat top, so it differs from the letter З (decision 121), and digits are as
+tall as capitals. The fonts compared before the choice, and why the others
+were left out, are listed in docs/14 (T1.1) of the research repo
+(decisions 126, 130).
 
-Sources (https://github.com/google/fonts, folder ofl/<name>/):
-    montserrat/Montserrat[wght].ttf       Version 9.000
-    arsenal/Arsenal-Bold.ttf              Version 2.000
-    lineseedjp/LINESeedJP-Regular.ttf     LINE Seed JP (Japanese and Latin, has Ukrainian Cyrillic)
+Source (https://github.com/google/fonts, folder ofl/<name>/):
+    montserrat/Montserrat[wght].ttf       Version 9.000, cut at weight 600
 
 Needs fonttools and brotli. Usage, from app/:
     python tools/build_fonts.py <folder with the downloaded ofl/ subfolders>
@@ -44,34 +42,12 @@ CHARS = (
 
 FONTS = [
     {
-        "id": "montserrat",
-        "family": "Montserrat TMT",
-        "label": "Montserrat",
-        "source": "montserrat/Montserrat[wght].ttf",
-        "axes": {"wght": 500},
-        "weight": 500,
-    },
-    {
-        "id": "montserrat600",
+        "id": "montserrat-semibold",
         "family": "Montserrat SemiBold TMT",
-        "label": "Montserrat жирніший",
+        "label": "Montserrat SemiBold",
         "source": "montserrat/Montserrat[wght].ttf",
         "axes": {"wght": 600},
         "weight": 600,
-    },
-    {
-        "id": "arsenal",
-        "family": "Arsenal TMT",
-        "label": "Arsenal",
-        "source": "arsenal/Arsenal-Bold.ttf",
-        "weight": 700,
-    },
-    {
-        "id": "lineseed",
-        "family": "LINE Seed TMT",
-        "label": "LINE Seed",
-        "source": "lineseedjp/LINESeedJP-Regular.ttf",
-        "weight": 400,
     },
 ]
 

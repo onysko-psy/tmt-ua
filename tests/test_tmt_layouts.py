@@ -59,7 +59,7 @@ class StoredLayoutsTest(unittest.TestCase):
                     self.assertLess(ratio, 1.45, (a["id"], b["id"]))
 
     def test_gap_is_at_least_a_diameter_in_the_offered_sizes(self):
-        # Field heights and circle diameters offered in src/tmt/candidates.js;
+        # Field heights and circle diameters that were offered in T1.1;
         # only the largest circle on the smallest field may fall short.
         for field_h, circle in ((140, 10), (140, 11), (150, 10), (150, 11), (150, 12), (160, 10), (160, 11), (160, 12)):
             unit = field_h / 100

@@ -1,48 +1,15 @@
 {
  "fonts": [
   {
-   "id": "montserrat",
-   "family": "Montserrat TMT",
-   "label": "Montserrat",
-   "file": "montserrat.woff2",
-   "weight": 500,
-   "source_version": "Version 9.000",
-   "cap": 0.7,
-   "digit": 0.7,
-   "bytes": 11720
-  },
-  {
-   "id": "montserrat600",
+   "id": "montserrat-semibold",
    "family": "Montserrat SemiBold TMT",
-   "label": "Montserrat жирніший",
-   "file": "montserrat600.woff2",
+   "label": "Montserrat SemiBold",
+   "file": "montserrat-semibold.woff2",
    "weight": 600,
    "source_version": "Version 9.000",
    "cap": 0.7,
    "digit": 0.7,
-   "bytes": 11720
-  },
-  {
-   "id": "arsenal",
-   "family": "Arsenal TMT",
-   "label": "Arsenal",
-   "file": "arsenal.woff2",
-   "weight": 700,
-   "source_version": "Version 2.000",
-   "cap": 0.65,
-   "digit": 0.65,
-   "bytes": 8736
-  },
-  {
-   "id": "lineseed",
-   "family": "LINE Seed TMT",
-   "label": "LINE Seed",
-   "file": "lineseed.woff2",
-   "weight": 400,
-   "source_version": "Version 1.003",
-   "cap": 0.764,
-   "digit": 0.771,
-   "bytes": 10856
+   "bytes": 11724
   }
  ]
 }

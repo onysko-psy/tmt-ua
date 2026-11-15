@@ -94,7 +94,7 @@ class TmtOptionsTest(AppTestCase):
                 self.calibrate(page, 380)
                 page.locator(".dev-square").wait_for()
                 page.get_by_role("button", name="Далі").click()
-                page.get_by_role("link", name="Варіанти TMT").click()
+                page.get_by_role("link", name="Стимули TMT").click()
                 page.locator(".tmt-field").wait_for()
                 field = page.locator(".tmt-field").bounding_box()
                 self.assertAlmostEqual(field["width"], 240 * PX_PER_MM, delta=1)
@@ -131,7 +131,7 @@ class TmtOptionsTest(AppTestCase):
         self.assertIsNone(page.evaluate("localStorage.getItem('tmtua.dev.calibration')"))
         self.assertEqual(errors, [])
 
-    def test_switching_parts_and_fonts(self):
+    def test_switching_parts(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, _ = self.open_tool(browser)
@@ -151,13 +151,12 @@ class TmtOptionsTest(AppTestCase):
                 page.get_by_role("button", name="Пробна B").click()
                 self.assertEqual(self.labels(page), "1 А 2 Б 3 В 4 Г".split())
 
-                family = lambda: page.locator(".tmt-circle text").first.get_attribute("font-family")
-                self.assertIn("Montserrat TMT", family())
-                page.keyboard.press("ArrowRight")
-                self.assertIn("Montserrat SemiBold TMT", family())
-                page.get_by_role("button", name="Arsenal").click()
-                self.assertIn("Arsenal TMT", family())
-                expect(page.locator(".tmt-summary")).to_have_text("шрифт Arsenal")
+                # The decided font (decision 131); nothing on the page changes it.
+                text = page.locator(".tmt-circle text").first
+                self.assertEqual(text.get_attribute("font-family"), "'Montserrat SemiBold TMT'")
+                self.assertEqual(text.get_attribute("font-weight"), "600")
+                self.assertEqual(page.locator('[data-set="font"]').count(), 0)
+                expect(page.locator(".tmt-layout-note")).to_contain_text("шрифт Montserrat SemiBold")
 
                 page.get_by_label("лінії шляху").check()
                 page.get_by_label("хрестик").check()
@@ -169,7 +168,6 @@ class TmtOptionsTest(AppTestCase):
                 page.reload()
                 page.locator(".tmt-field").wait_for()
                 self.assertEqual(page.locator(".tmt-field").get_attribute("data-layout"), "practice_b-1")
-                expect(page.locator(".tmt-summary")).to_have_text("шрифт Arsenal")
                 self.assertEqual(page.locator(".tmt-path").count(), 1)
 
                 # The panel hides to leave the field alone, and comes back.
@@ -179,7 +177,7 @@ class TmtOptionsTest(AppTestCase):
                 expect(page.locator(".tmt-panel")).to_be_visible()
 
                 page.get_by_role("button", name="Літери зблизька").click()
-                self.assertEqual(page.locator(".tmt-specimen .tmt-circle").count(), 4 * 18)
+                self.assertEqual(page.locator(".tmt-specimen .tmt-circle").count(), 18)
                 self.assertEqual(errors, [])
 
     def test_sizes_come_from_the_parameters(self):
@@ -240,19 +238,20 @@ class TmtOptionsTest(AppTestCase):
         self.assertEqual(errors, [])
 
     def test_bundled_fonts_tell_the_look_alikes_apart(self):
-        """Decision 121: the digit 3 has its flat top, Ґ its hook, and the
-        fonts on offer are those of decision 130."""
+        """Decision 121: in the bundled font (decision 131) the digit 3 has
+        its flat top and Ґ its hook. Thresholds sit a few points under what
+        Montserrat SemiBold measures in Chromium and WebKit."""
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, _ = self.open_tool(browser)
                 fonts = page.evaluate("window.tmtuaOptions.fonts")
-                self.assertEqual([font["id"] for font in fonts], ["montserrat", "montserrat600", "arsenal", "lineseed"])
+                self.assertEqual([font["id"] for font in fonts], ["montserrat-semibold"])
                 for font in fonts:
                     loaded = page.evaluate(
                         "([family, weight]) => document.fonts.check(`${weight} 20px '${family}'`, 'АҐЄІ3')",
                         [font["family"], font["weight"]])
                     self.assertTrue(loaded, font["id"])
-                    for pair, least in (("З3", 0.30), ("ГҐ", 0.08), ("ЕЄ", 0.30), ("ИІ", 0.60), ("І1", 0.40)):
+                    for pair, least in (("З3", 0.30), ("ГҐ", 0.08), ("ЕЄ", 0.30), ("ИІ", 0.60), ("І1", 0.40), ("Б6", 0.25), ("В8", 0.20)):
                         difference = page.evaluate(GLYPH_DIFFERENCE, [font["family"], font["weight"], *pair])
                         self.assertGreater(difference, least, (font["id"], pair))
                 self.assertEqual(errors, [])

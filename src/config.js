@@ -3,7 +3,7 @@
 // new version number (CLAUDE.md). Decision numbers refer to
 // docs/05-history-and-decisions.md in the private research repo.
 
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.5.1';
 
 // Values allowed in the ?mode= URL parameter; no parameter means 'main'.
 // pilot and dev write to the pilot copies of the spreadsheets (decision 53).
@@ -30,6 +30,7 @@ export const PARAMS = {
     fieldHeightMm: 150,
     circleMm: 11,
     letterMm: 4.5, // height of capital letters and digits
+    font: 'montserrat-semibold', // bundled in src/fonts/ (decision 131)
   },
   coding: {
     durationMs: 90_000, // protocol
