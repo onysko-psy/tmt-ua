@@ -5,6 +5,7 @@ import { calibrationScreens, calibrationMessage } from './tasks/calibration.js';
 import { tmtScreens, tmtMessage } from './tasks/tmt.js';
 import {
   consentScreens,
+  consentRetestScreens,
   consentMessage,
   criteriaScreens,
   criteriaMessage,
@@ -68,3 +69,16 @@ export const BLOCKS = [
 ];
 
 export const isPlaceholder = (b) => b.build === placeholder;
+
+// The retest (decisions 52, 71; T2.4): no criteria, no biography, no invitation
+// to a retest; the consent is a short confirmation. The stimuli are the same
+// as in the first session (decisions 64, 89).
+const NOT_IN_RETEST = new Set(['criteria', 'demographics', 'retest_invite']);
+
+export const RETEST_BLOCKS = BLOCKS.filter((b) => !NOT_IN_RETEST.has(b.id)).map((b) =>
+  b.id === 'consent'
+    ? block('consent', 'Підтвердження згоди (ретест)', 'Т2.4', { build: consentRetestScreens, message: consentMessage })
+    : b,
+);
+
+export const blocksFor = (session) => (session.type === 'retest' ? RETEST_BLOCKS : BLOCKS);

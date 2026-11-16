@@ -165,13 +165,21 @@ export function inviteMessage(block, ctx) {
 
 export const thanksScreens = () => [{ type: PassPlugin }];
 
-// The session went through: the status and the time of the end.
-export const thanksMessage = () => ({ summary: { status: 'complete', finished_at: new Date().toISOString() } });
+// The session went through: the status and the time of the end. A finished
+// retest also marks the contacts row of the code as done (docs/11, 5.3); the
+// receiver ignores the mark if the code has no row there.
+export function thanksMessage(block, ctx) {
+  const finishedAt = new Date().toISOString();
+  const message = { summary: { status: 'complete', finished_at: finishedAt } };
+  if (ctx.session.type === 'retest') message.contact = { retest_done_at: finishedAt };
+  return message;
+}
 
 // The last screen (decision 69: no results). The sentence about the
-// invitation only for those who left an address.
+// invitation only for those who left an address; the retest has its own text.
 export function completeHtml(ctx) {
   const t = texts.end;
+  if (ctx.session.type === 'retest') return t.completeRetest.join('');
   const left = Boolean(state(ctx, 'invite').email);
   return t.complete.join('') + (left ? t.completeEmail : '') + t.completeContact;
 }

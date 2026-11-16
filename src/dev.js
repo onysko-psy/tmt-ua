@@ -1,5 +1,6 @@
 import { APP_VERSION } from './config.js';
 import { isPlaceholder } from './blocks.js';
+import { newParticipantCode } from './data/ids.js';
 
 // Dev-mode screens (?mode=dev): a menu to jump to any block, a corner badge
 // with the delivery queue that leads back to the menu, and a dump of the
@@ -7,7 +8,8 @@ import { isPlaceholder } from './blocks.js';
 
 // Builds a dev link that keeps the current set.* overrides.
 export function devUrl(session, extra = {}) {
-  const query = new URLSearchParams({ mode: 'dev', ...extra });
+  const query = new URLSearchParams({ mode: 'dev', ...(session.retestCode ? { r: session.retestCode } : {}), ...extra });
+  if (extra.r === null) query.delete('r'); // a link to the first session
   for (const [path, value] of Object.entries(session.overrides)) query.set(`set.${path}`, value);
   return `?${query}`;
 }
@@ -26,7 +28,10 @@ export function renderDevMenu(blocks, session) {
   document.body.innerHTML = `
     <main class="dev-menu">
       <h1>TMT-UA · dev · <span class="dev-version">${APP_VERSION}</span></h1>
-      <p><a href="${devUrl(session, { start: blocks[0].id })}">Уся сесія з початку</a></p>
+      <p><a href="${devUrl(session, { start: blocks[0].id })}">${session.type === 'retest' ? 'Уся сесія ретесту з початку' : 'Уся сесія з початку'}</a>
+        ${session.type === 'retest'
+          ? `(код <code>${session.retestCode}</code>; <a href="${devUrl(session, { r: null })}">до першої сесії</a>)`
+          : `· <a href="${devUrl(session, { r: newParticipantCode() })}">ретест із новим кодом</a>`}</p>
       <p><a href="${devUrl(session, { tool: 'env' })}">Перевірка середовища</a>: клавіші в
         повноекранному режимі, вихід із вкладки, масштаб. Нічого не надсилає.</p>
       <p><a href="${devUrl(session, { tool: 'tmt' })}">Стимули TMT</a>: розташування, розміри й

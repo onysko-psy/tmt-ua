@@ -17,5 +17,12 @@ export function randomCode(length) {
   return code;
 }
 
+const CODE_LENGTH = 10;
+
 export const newSessionId = () => randomCode(16);
-export const newParticipantCode = () => randomCode(10);
+export const newParticipantCode = () => randomCode(CODE_LENGTH);
+
+// Whether a string can be a participant code: the length and the alphabet of
+// newParticipantCode(). A cut-off or mistyped retest link fails this check.
+export const isParticipantCode = (value) =>
+  typeof value === 'string' && value.length === CODE_LENGTH && [...value].every((c) => ALPHABET.includes(c));

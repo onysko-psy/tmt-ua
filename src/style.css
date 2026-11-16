@@ -360,6 +360,20 @@ body {
   margin: 0.5rem 0;
 }
 
+/* The full consent on the retest screen opens under the short one. */
+
+.consent-full {
+  margin: 1.2rem 0 0.4rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.consent-full summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .form {
   font-size: 1.05rem;
   text-align: left;

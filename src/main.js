@@ -1,7 +1,7 @@
 import { APP_VERSION, RECEIVER_URL } from './config.js';
 import { texts } from './texts.uk.js';
 import { parseUrl, buildParams, selectBlocks } from './session.js';
-import { BLOCKS, isPlaceholder } from './blocks.js';
+import { blocksFor, isPlaceholder } from './blocks.js';
 import { initJsPsych, libsLoaded } from './lib.js';
 import { renderDevMenu, createDevBadge, renderDevEnd } from './dev.js';
 import { renderEnvCheck } from './dev-env.js';
@@ -67,14 +67,14 @@ async function start() {
     return showMessage(`Unknown dev tool: ${session.devTool}`);
   }
   if (isDev && session.devStart === null && session.devOnly === null) {
-    return renderDevMenu(BLOCKS, session);
+    return renderDevMenu(blocksFor(session), session);
   }
 
   // Both can throw only in dev mode: overrides and block choice come from dev links.
   let params, blocks;
   try {
     params = buildParams(session.overrides);
-    blocks = selectBlocks(BLOCKS, session);
+    blocks = selectBlocks(blocksFor(session), session);
   } catch (error) {
     return showMessage(error.message);
   }
@@ -90,10 +90,12 @@ async function start() {
 
   // Until every block is built, main mode sends nothing, so the main
   // spreadsheet stays empty until data collection starts.
-  const collecting = session.mode !== 'main' || !BLOCKS.some(isPlaceholder);
+  const collecting = session.mode !== 'main' || !blocksFor(session).some(isPlaceholder);
 
   const badge = isDev ? createDevBadge(session) : null;
-  const ids = { session_id: newSessionId(), participant_code: newParticipantCode() };
+  // A retest keeps the participant code of the first session, which the
+  // personal link carries (decision 52); the session itself is new.
+  const ids = { session_id: newSessionId(), participant_code: session.retestCode ?? newParticipantCode() };
   let atEnd = false;
   // Set by a block that ends the session early (e.g. 'screen_too_small'):
   // the block finishes, its message carries the status, and nothing after it runs.
@@ -102,7 +104,7 @@ async function start() {
   const sender = createSender({
     url: RECEIVER_URL,
     base: { ...ids, mode: session.mode, app_version: APP_VERSION },
-    meta: { session_type: 'first', started_at: new Date().toISOString(), ...deviceInfo() },
+    meta: { session_type: session.type, started_at: new Date().toISOString(), ...deviceInfo() },
     ...params.send,
     onChange: (state) => {
       badge?.update(state);

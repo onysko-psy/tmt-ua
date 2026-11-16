@@ -1,4 +1,4 @@
-"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2, T2.3).
+"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2, T2.3, T2.4).
 
 Not part of the automatic test run: it writes rows into the PILOT storage
 (mode=dev). Prints the session ids; then compare the pilot spreadsheet with
@@ -36,6 +36,11 @@ def pass_questionnaires(page, age=27):
     page.locator('fieldset[data-name="sex"] input[value="female"]').check()
     page.locator('fieldset[data-name="education"] input[value="5"]').check()
     page.locator("form button[type=submit]").click()
+    pass_conditions(page)
+
+
+def pass_conditions(page):
+    """The screen before the tasks and the conditions questionnaire."""
     page.get_by_role("button", name="Далі").click()  # the screen before the tasks
     page.locator('fieldset[data-name="sleep"]').wait_for()
     for name, value in [("sleep", "7"), ("fatigue", "2"), ("others", "no"), ("pointer", "mouse")]:
@@ -44,10 +49,12 @@ def pass_questionnaires(page, age=27):
 
 
 ADDRESS = "pilot-check@example.com"  # a made-up address: only for the pilot contacts sheet
+UNKNOWN_CODE = "u2n7k8m3qz"  # a well-formed code that no first session has
 
 
 def pass_closing(page, email=ADDRESS):
-    """PSS-10 (all answers 2), the questions after the tasks, the invitation."""
+    """PSS-10 (all answers 2), the questions after the tasks, the invitation
+    (not on a retest: email=None)."""
     page.locator('fieldset[data-name="pss_1"]').wait_for()
     for number in range(1, 11):
         page.locator(f'fieldset[data-name="pss_{number}"] input[value="2"]').check()
@@ -57,6 +64,8 @@ def pass_closing(page, email=ADDRESS):
         page.locator(f'fieldset[data-name="{name}"] input[value="{value}"]').check()
     page.locator("#field-comment").fill("Live check: no comment.")
     page.locator("form button[type=submit]").click()
+    if email is None:
+        return
     page.locator("#field-email").wait_for()
     page.locator("#field-email").fill(email)
     page.get_by_role("button", name="Надіслати й завершити").click()
@@ -137,7 +146,51 @@ def main():
             queued = page.evaluate("window.tmtua.sender.pending()")
             context.set_offline(False)
             wait_delivered(page)
-            report.append(f"{name}: full session {session_id} (8 blocks queued offline: {queued == 8})")
+            first_code = page.evaluate("window.tmtua.ids.participant_code")
+            report.append(f"{name}: full session {session_id} code {first_code} (8 blocks queued offline: {queued == 8})")
+            context.close()
+
+            # 1b. The retest of that participant (T2.4): the personal link
+            # ?r=CODE, no biography, no invitation; the end marks the contacts.
+            context = browser.new_context()
+            page = context.new_page()
+            open_app(page, base + f"?mode=dev&r={first_code}&start=device_check")
+            session_id = page.evaluate("window.tmtua.ids.session_id")
+            page.get_by_role("button", name="Я погоджуюся").click()
+            pass_conditions(page)
+            calibrate(page)
+            page.locator(".dev-square").wait_for()
+            page.get_by_role("button", name="Далі").click()
+            page.get_by_role("button", name="Увімкнути повноекранний режим").click()
+            pass_tmt(page)
+            pass_tmt(page)
+            click_through(page, 3)
+            pass_closing(page, email=None)
+            page.locator(".dev-end").wait_for()
+            wait_delivered(page)
+            report.append(f"{name}: RETEST {session_id} of code {first_code}")
+            context.close()
+
+            # 1c. A retest under a code nobody left an address for: the
+            # receiver must ignore the contacts mark (no new contacts row).
+            context = browser.new_context()
+            page = context.new_page()
+            open_app(page, base + f"?mode=dev&r={UNKNOWN_CODE}&only=thanks")
+            session_id = page.evaluate("window.tmtua.ids.session_id")
+            page.locator(".dev-end").wait_for()
+            wait_delivered(page)
+            report.append(f"{name}: RETEST of an UNKNOWN code {session_id} ({UNKNOWN_CODE})")
+            context.close()
+
+            # 1d. A retest of a finished code, opened again: its own session.
+            context = browser.new_context()
+            page = context.new_page()
+            open_app(page, base + f"?mode=dev&r={first_code}&only=consent")
+            session_id = page.evaluate("window.tmtua.ids.session_id")
+            page.get_by_role("button", name="Я погоджуюся").click()
+            page.locator(".dev-end").wait_for()
+            wait_delivered(page)
+            report.append(f"{name}: RETEST OPENED AGAIN {session_id} of code {first_code}")
             context.close()
 
             # 2. fetch blocked, page left: only the beacon can deliver.
@@ -242,6 +295,23 @@ Expected in the pilot sessions sheet:
 - each "excluded by age" id: status "excluded_criteria", exclusion_reason
   "age", last_block "criteria"; consent_at and the device columns filled,
   but NO age, tbi or color_vision values
+- each "RETEST" id (T2.4): a NEW row (own session_id) with participant_code
+  equal to the code printed in the line, session_type "retest", started_at
+  and device_* filled, consent_at (the retest's own), sleep_h 7, fatigue 2,
+  others_present 0, pointer_self "mouse", tmt_a_* and tmt_b_* as in a full
+  session (layout_version 1), 3 *_placeholder columns, pss_total 20,
+  post_* filled, status "complete", finished_at, last_block "thanks"; NO age,
+  sex, education, email_left, exclusion_reason. The first session's row with
+  the same participant_code is unchanged (still session_type "first", email_left 1).
+  In the pilot CONTACTS sheet the row of that code now has retest_done_at
+  (an ISO time, the same as the retest's finished_at), email and letter as
+  before, and the number of rows did not grow
+- the "RETEST of an UNKNOWN code" id: a row with participant_code
+  u2n7k8m3qz, session_type "retest", status "complete", last_block "thanks";
+  the CONTACTS sheet has NO row for u2n7k8m3qz (the mark is ignored)
+- the "RETEST OPENED AGAIN" id: a third row with the same participant_code,
+  session_type "retest", last_block "consent", consent_at, no status; it does
+  not change the contacts row
 - each "beacon only" id: one row with tmt_a_status "complete" and the other tmt_a_* columns""")
 
 

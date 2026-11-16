@@ -48,12 +48,38 @@ export function consentScreens(block, ctx) {
   ];
 }
 
+// The retest (decision 71): a short confirmation instead of the whole consent;
+// the full text opens on the same screen. The buttons and what they do are
+// the same as in the first session.
+export function consentRetestScreens(block, ctx) {
+  const consent = state(ctx, 'consent');
+  const t = texts.consent.retest;
+  return [
+    {
+      type: HtmlButtonResponse,
+      stimulus:
+        `<div class="screen consent"><h2>${t.title}</h2>${t.body}` +
+        `<details class="consent-full"><summary>${t.fullText}</summary>${texts.consent.body}</details></div>`,
+      choices: [texts.consent.agree, texts.consent.decline],
+      on_finish: (data) => {
+        consent.agreed = data.response === 0;
+        if (consent.agreed) consent.at = new Date().toISOString();
+        else ctx.end('no_consent');
+      },
+    },
+  ];
+}
+
 // A refusal leaves a row with the status alone: the device and the start
-// time stay unsent (withoutMeta, sender.js), because there is no consent.
+// time stay unsent (withoutMeta, sender.js), because there is no consent. A
+// refusal at the retest also says it was the retest (the type is no personal
+// data), so that the refusals of the two sessions can be told apart.
 export function consentMessage(block, ctx) {
   const consent = state(ctx, 'consent');
   if (consent.agreed === undefined) return null;
-  if (!consent.agreed) return { summary: {}, withoutMeta: true };
+  if (!consent.agreed) {
+    return { summary: ctx.session.type === 'retest' ? { session_type: 'retest' } : {}, withoutMeta: true };
+  }
   return { summary: { consent_at: consent.at } };
 }
 

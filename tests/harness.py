@@ -290,10 +290,12 @@ class AppTestCase(unittest.TestCase):
         self.click_tmt(page, self.start_tmt(page, label))
         page.locator(".tmt-run").wait_for(state="detached")
 
-    def session_blocks(self, page):
-        """(id, label, is a placeholder) of every block, in session order."""
+    def session_blocks(self, page, retest=False):
+        """(id, label, is a placeholder) of every block, in session order
+        (of a retest if asked)."""
         return page.evaluate(
-            "import('./src/blocks.js').then(m => m.BLOCKS.map(b => [b.id, b.label, m.isPlaceholder(b)]))")
+            "type => import('./src/blocks.js').then(m => m.blocksFor({ type })"
+            ".map(b => [b.id, b.label, m.isPlaceholder(b)]))", "retest" if retest else "first")
 
     def calibrate(self, page, card_px=380):
         """Drags the corner of the card picture until it is card_px wide (the

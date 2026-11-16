@@ -1,15 +1,35 @@
 import { MODES, PARAMS } from './config.js';
+import { isParticipantCode } from './data/ids.js';
 
-// Reads the page URL. Returns { mode, devStart, devOnly, devTool, overrides },
-// or { error } when the link is malformed. Unknown modes are rejected rather
-// than treated as main, so a mistyped pilot link never writes into the main
-// data.
+// Reads the page URL. Returns { mode, type, retestCode, devStart, devOnly,
+// devTool, overrides }, or { error } when the link is malformed. Unknown modes
+// are rejected rather than treated as main, so a mistyped pilot link never
+// writes into the main data. The personal link of the retest, ?r=CODE
+// (decisions 52, 71), makes the session a 'retest' under that participant
+// code; a code that cannot be a participant code (a cut-off link) is
+// rejected. Whether the code belongs to anyone is not known here: the app
+// cannot read the tables, so unknown codes are sorted out in the analysis
+// (decision 143).
 export function parseUrl(search) {
   const query = new URLSearchParams(search);
   const mode = query.get('mode') ?? 'main';
   if (!MODES.includes(mode)) return { error: 'bad_mode' };
 
-  const session = { mode, devStart: null, devOnly: null, devTool: null, overrides: {} };
+  let retestCode = null;
+  if (query.has('r')) {
+    retestCode = query.get('r');
+    if (!isParticipantCode(retestCode)) return { error: 'bad_code' };
+  }
+
+  const session = {
+    mode,
+    type: retestCode === null ? 'first' : 'retest',
+    retestCode,
+    devStart: null,
+    devOnly: null,
+    devTool: null,
+    overrides: {},
+  };
   if (mode !== 'dev') return session;
 
   session.devStart = query.get('start');
