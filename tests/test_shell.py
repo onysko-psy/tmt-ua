@@ -28,9 +28,40 @@ class AppShellTest(AppTestCase):
                 texts = self.module(page, "texts.uk.js")["texts"]
                 expect(page.locator(".message")).to_contain_text("Дякуємо за участь!")
                 self.assertEqual(page.locator(".dev-badge").count(), 0)
-                # While some blocks are placeholders, main mode sends nothing,
+                # While COLLECTION_OPEN is false (decision 161), main mode sends nothing,
                 # so the main spreadsheet stays empty until data collection.
                 self.assertEqual(receiver.requests, [])
+                self.assertEqual(errors, [])
+
+    def test_the_collection_switch_is_off_in_the_repository(self):
+        # Decision 161: it is turned on, with a new version, when data collection starts;
+        # this test is changed then too.
+        for browser in self.browsers:
+            with self.subTest(browser=browser.browser_type.name):
+                page, errors = self.open(browser, "")
+                self.assertFalse(self.module(page, "config.js")["COLLECTION_OPEN"])
+                self.assertEqual(errors, [])
+
+    def test_main_mode_sends_everything_once_collection_is_open(self):
+        def open_collection(route):
+            response = route.fetch()
+            body = response.text()
+            assert "export const COLLECTION_OPEN = false;" in body
+            route.fulfill(response=response, body=body.replace("COLLECTION_OPEN = false", "COLLECTION_OPEN = true"))
+
+        for browser in self.browsers:
+            with self.subTest(browser=browser.browser_type.name):
+                context, receiver = self.new_context(browser)
+                context.route("**/src/config.js", open_collection)
+                page, errors = self.open(browser, "", context=context)
+                self.assertTrue(self.module(page, "config.js")["COLLECTION_OPEN"])
+                for block in self.session_blocks(page):
+                    self.pass_block(page, *block)
+                expect(page.locator(".message")).to_contain_text("Дякуємо за участь!", timeout=20000)
+                # (an accepted device sends nothing: the device check has no message)
+                self.assertEqual(receiver.blocks(), [b[0] for b in self.session_blocks(page) if b[0] != "device_check"])
+                self.assertEqual({m["mode"] for m in receiver.accepted}, {"main"})
+                self.assert_valid_for_receiver(context, receiver.accepted)
                 self.assertEqual(errors, [])
 
     def test_unknown_mode_is_rejected(self):
@@ -56,11 +87,11 @@ class AppShellTest(AppTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors = self.open(browser, "?mode=dev&only=sart")
-                expect(page.locator(".placeholder")).to_contain_text("SART")
+                expect(page.locator(".screen")).to_contain_text("Завдання з цифрами")
                 expect(page.locator(".dev-badge")).to_be_visible()
-                page.get_by_role("button", name="Далі").click()
+                self.pass_sart(page)
                 data = json.loads(page.locator(".dev-end pre").text_content())
-                self.assertEqual([row["block"] for row in data], ["sart"])
+                self.assertEqual({row["trial_type"] for row in data}, {"html-button-response", "tmtua-sart"})
                 self.assertEqual(data[0]["mode"], "dev")
                 self.assertEqual(data[0]["app_version"], self.module(page, "config.js")["APP_VERSION"])
                 self.assertEqual(errors, [])

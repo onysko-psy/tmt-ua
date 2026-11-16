@@ -25,6 +25,9 @@ COLUMNS = {
     "coding_symbols_version", "coding_sequence_version",
     "coding_correct_n", "coding_errors_n", "coding_answers_n", "coding_extra_keys_n",
     "coding_time_ms", "coding_sequence_exhausted",
+    # the exits during the 90 s themselves (decision 165)
+    "coding_test_hidden_n", "coding_test_hidden_ms", "coding_test_blur_n", "coding_test_blur_ms",
+    "coding_test_fs_exit_n", "coding_test_fs_exit_ms",
 }
 
 
@@ -435,6 +438,12 @@ class MonitorTest(CodingTestCase):
                 self.assertEqual(types.count("test_end"), 1)
                 self.assertEqual(log["main"]["during_test"]["blur_n"], 1)
                 self.assertGreaterEqual(log["main"]["during_test"]["blur_ms"], 250)
+                # The same in the table (decision 165): only the main part, not the instruction before it.
+                self.assertEqual(summary["coding_test_blur_n"], 1)
+                self.assertGreaterEqual(summary["coding_test_blur_ms"], 250)
+                self.assertEqual(summary["coding_test_blur_ms"], log["main"]["during_test"]["blur_ms"])
+                for key in ("hidden_n", "hidden_ms", "fs_exit_n", "fs_exit_ms"):
+                    self.assertEqual(summary[f"coding_test_{key}"], 0, key)
                 self.assertEqual(errors, [])
 
     def test_page_zoom_keys_are_blocked_during_the_task(self):

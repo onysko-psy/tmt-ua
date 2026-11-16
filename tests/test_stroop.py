@@ -30,6 +30,9 @@ COLUMNS = CONDITION_COLUMNS | {
     "stroop_colors_version", "stroop_sequence_version",
     "stroop_effect_ms", "stroop_correct_n", "stroop_errors_n", "stroop_timeouts_n",
     "stroop_miss_n", "stroop_dot_repeat_n", "stroop_time_ms",
+    # the exits during the main part itself (decision 168)
+    "stroop_test_hidden_n", "stroop_test_hidden_ms", "stroop_test_blur_n", "stroop_test_blur_ms",
+    "stroop_test_fs_exit_n", "stroop_test_fs_exit_ms",
 }
 FAST = "&set.stroop.itiMs=20&set.stroop.feedbackMs=40"
 
@@ -494,6 +497,10 @@ class MainPartTest(StroopTestCase):
                 self.assertEqual(during["blur_n"], 1)
                 self.assertGreaterEqual(during["blur_ms"], 150)
                 self.assertEqual(summary["stroop_blur_n"], 1)  # the whole block
+                self.assertEqual(summary["stroop_test_blur_n"], 1)  # decision 168: the main part only
+                self.assertEqual(summary["stroop_test_blur_ms"], during["blur_ms"])
+                for key in ("hidden_n", "hidden_ms", "fs_exit_n", "fs_exit_ms"):
+                    self.assertEqual(summary[f"stroop_test_{key}"], 0, key)
                 self.assertEqual(errors, [])
 
 

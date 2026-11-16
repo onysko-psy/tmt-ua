@@ -1,0 +1,38 @@
+{
+ "look_version": 1,
+ "note": "The look of the SART screen chosen by the author (decision 156): variant 1 of sart-candidates.json. All lengths in mm on the task area; the digit and the mask are centred on the area. Changing this file after data collection starts needs the author's decision and a new version.",
+ "variant": "1",
+ "area": {
+  "w": 240,
+  "h": 150
+ },
+ "original_pt": [
+  48,
+  72,
+  94,
+  100,
+  120
+ ],
+ "bg": "#FFFFFF",
+ "fg": "#000000",
+ "mask_color": "#000000",
+ "hint_color": "#6B6B6B",
+ "digit_cap_mm": [
+  16.0,
+  24.0,
+  31.3,
+  33.3,
+  40.0
+ ],
+ "mask_mm": 44,
+ "mask_line_mm": 1.2,
+ "hint_cap_mm": 5,
+ "hint_below_center_mm": 50,
+ "countdown": {
+  "text_cap_mm": 6,
+  "text_above_center_mm": 8,
+  "bar_w_mm": 80,
+  "bar_h_mm": 3,
+  "bar_below_center_mm": 6
+ }
+}

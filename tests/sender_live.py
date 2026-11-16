@@ -1,4 +1,4 @@
-"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2, T2.3, T2.4, T3.1, T3.2).
+"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2, T2.3, T2.4, T3.1, T3.2, T3.3).
 
 Not part of the automatic test run: it writes rows into the PILOT storage
 (mode=dev). Prints the session ids; then compare the pilot spreadsheet with
@@ -19,6 +19,8 @@ from harness import APP_DIR, RECEIVER_GLOB, TMT_POINTS, AppTestCase, QuietHandle
 
 # Shortens the pauses and the answer limit of the Stroop task, so that a live session is quick.
 STROOP_FAST = "&set.stroop.itiMs=50&set.stroop.feedbackMs=100&set.stroop.responseLimitMs=800"
+# The SART runs in real time (a digit is 250 ms, a trial 1.15 s); only the main part is cut to its first 60 trials.
+SART_FAST = "&set.sart.mainTrials=60"
 
 
 def click_through(page, count):
@@ -47,6 +49,40 @@ def pass_stroop(page, training_wrong=(), repeat=False, wrong=(), timeout=(), del
     page.locator(".stroop-run[data-dot-shown='1']").wait_for()
     bot({"wrong": list(wrong), "timeout": list(timeout), "delay": delay or {"congruent": 20, "incongruent": 70}})
     page.locator(".stroop-run").wait_for(state="detached")
+
+
+# The SART block (T3.3): the instruction, the training (a repeat at 9 misses of 16), the main part
+# of the first 60 trials, answered by the bot (synthetic space presses 200 ms after the digit).
+def sart_plan():
+    import json
+    sequence = json.loads((APP_DIR / "stimuli" / "sart-sequence.json").read_text())
+    practice = sequence["practice"][0]
+    main = sequence["main"][:60]
+    threes = [i for i, t in enumerate(main) if t[0] == 3]
+    others = [i for i, t in enumerate(main) if t[0] != 3]
+    return {
+        "training_omit": [i for i, t in enumerate(practice) if t[0] != 3][:9],  # 9 misses: the repeat
+        "press3": threes[:3],  # 3 false responses
+        "omit": [others[5], others[12], others[30]],  # 3 misses
+        "threes": len(threes), "others": len(others),
+    }
+
+
+def pass_sart(page, training_omit=(), repeat=False, press3=(), omit=()):
+    def bot(plan):
+        page.evaluate(AppTestCase.SART_BOT, {"plan": plan})
+
+    page.get_by_role("button", name="Почати тренування").click()
+    page.locator(".sart-run").wait_for()
+    bot({"omit": list(training_omit)})
+    if repeat:
+        page.get_by_role("button", name="Почати тренування").click()
+        page.locator(".sart-run").wait_for()
+        bot({})
+    page.get_by_role("button", name="Почати", exact=True).click()
+    page.locator(".sart-run").wait_for()
+    bot({"press3": list(press3), "omit": list(omit)})
+    page.locator(".sart-run").wait_for(state="detached")
 
 
 def pass_questionnaires(page, age=27):
@@ -200,7 +236,7 @@ def main():
             # back. device_check shows no screen on a desktop and sends nothing.
             context = browser.new_context()
             page = context.new_page()
-            open_app(page, base + "?mode=dev&start=device_check&set.coding.durationMs=4000" + STROOP_FAST)
+            open_app(page, base + "?mode=dev&start=device_check&set.coding.durationMs=4000" + STROOP_FAST + SART_FAST)
             session_id = page.evaluate("window.tmtua.ids.session_id")
             pass_questionnaires(page)  # consent .. conditions
             calibrate(page)
@@ -218,21 +254,24 @@ def main():
             # stroop: 4 wrong in the training (8 of 12 correct: a repeat), then the main part:
             # wrong at trials 3, 10, 20, 50, no answer at 7 and 60 (limit 0.8 s here).
             pass_stroop(page, training_wrong=[1, 2, 3, 4], repeat=True, wrong=[3, 10, 20, 50], timeout=[7, 60])
-            click_through(page, 1)  # sart
+            plan = sart_plan()
+            pass_sart(page, training_omit=plan["training_omit"], repeat=True, press3=plan["press3"], omit=plan["omit"])
             pass_closing(page)  # pss10 .. retest_invite; thanks has no screen
             page.locator(".dev-end").wait_for()
             queued = page.evaluate("window.tmtua.sender.pending()")
             context.set_offline(False)
             wait_delivered(page)
             first_code = page.evaluate("window.tmtua.ids.participant_code")
-            report.append(f"{name}: full session {session_id} code {first_code} (8 blocks queued offline: {queued == 8})")
+            report.append(f"{name}: full session {session_id} code {first_code} (8 blocks queued offline: {queued == 8}); SART expected: "
+                          f"commission {len(plan['press3'])}, omission {len(plan['omit'])}, hit {plan['others'] - len(plan['omit'])}, "
+                          f"withhold {plan['threes'] - len(plan['press3'])}")
             context.close()
 
             # 1b. The retest of that participant (T2.4): the personal link
             # ?r=CODE, no biography, no invitation; the end marks the contacts.
             context = browser.new_context()
             page = context.new_page()
-            open_app(page, base + f"?mode=dev&r={first_code}&start=device_check&set.coding.durationMs=4000" + STROOP_FAST)
+            open_app(page, base + f"?mode=dev&r={first_code}&start=device_check&set.coding.durationMs=4000" + STROOP_FAST + SART_FAST)
             session_id = page.evaluate("window.tmtua.ids.session_id")
             page.get_by_role("button", name="Я погоджуюся").click()
             pass_conditions(page)
@@ -244,7 +283,7 @@ def main():
             pass_tmt(page)
             pass_coding(page, training_wrong=0, answers=30)  # the same 30 figures, no errors
             pass_stroop(page)  # a clean training and 96 right answers: the same sequence
-            click_through(page, 1)
+            pass_sart(page)  # a clean training and the first 60 trials: the same sequence
             pass_closing(page, email=None)
             page.locator(".dev-end").wait_for()
             wait_delivered(page)
@@ -334,7 +373,7 @@ def main():
     print("\n".join(report))
     print("""
 Expected in the pilot sessions sheet:
-- each "full session" id: one row, 1 *_placeholder column (sart) equal to 1 (coding is real since T3.1, stroop since T3.2),
+- each "full session" id: one row, no *_placeholder column (every block is real since T3.3),
   px_per_mm 4.4393, calibration_card_px 380, calibration_attempts 1,
   calibration_suspect 0, screen_w_mm 288.3, screen_h_mm 162.2,
   fullscreen_status "entered", fullscreen_view_w_mm / _h_mm filled,
@@ -371,6 +410,21 @@ Expected in the pilot sessions sheet:
   stroop_time_ms filled; ten stroop_* environment columns; stroop.json in the session's Drive folder with
   colors, sequence, sizes_mm, limits, practice.attempts (2, 12 trials each) and main.trials (96,
   "word"/"ink" equal to stimuli/stroop-sequence.json "main"), during_test, env.
+- each "full session" id (T3.3, SART; the main part is cut to its first 60 trials): sart_practice_attempts_n 2,
+  sart_practice_omissions_1 9, sart_practice_omissions_2 0, sart_practice_commissions_1 0 and _2 0,
+  sart_look_version "1", sart_sequence_version "1"; the counts printed in the report line (commission 3, omission 3,
+  hit, withhold; computed from stimuli/sart-sequence.json) and the rates sart_commission_rate = commission /
+  threes, sart_omission_rate = omission / other digits; sart_rt_mean_ms about 200-215 (the press was 200 ms after the
+  digit), sart_rt_sd_ms small (under 10), sart_rt_cv about 0.01-0.04, sart_fast_n 0, sart_extra_n 0, sart_time_ms about
+  69000 (60 x 1150), sart_refresh_hz about 60 (59-60 in Chromium, 58-60 in WebKit), sart_digit_frames 15,
+  sart_digit_mean_ms about 250 (+-2), sart_digit_dev_mean_ms under 2, sart_digit_dev_max_ms under 17,
+  sart_mask_mean_ms about 900; ten sart_* environment columns; sart.json in the session's Drive folder with look,
+  sequence, sizes_mm, limits, practice.attempts (2, 18 trials each, with "timing"), main.timing and main.trials (60,
+  "digit"/"size" equal to the first 60 of stimuli/sart-sequence.json, with digit_ms about 250 and mask_ms about 900
+  each), main.keys (empty), during_test, env.
+- each "RETEST" id of a code (T3.3): sart_practice_attempts_n 1, sart_practice_omissions_1 0,
+  sart_practice_omissions_2 EMPTY, sart_commission_n 0, sart_omission_n 0, sart_hit_n = all digits other than 3 in the
+  first 60, and the same 60 digit/size pairs in sart.json as in the first session.
 - each "RETEST" id of a code (T3.2): stroop_practice_attempts_n 1, stroop_practice_correct_1 12,
   stroop_practice_correct_2 EMPTY, stroop_correct_n 96, stroop_errors_n 0, stroop_timeouts_n 0, and the same
   96 word/ink pairs in stroop.json as in the first session.
@@ -401,7 +455,7 @@ Expected in the pilot sessions sheet:
   equal to the code printed in the line, session_type "retest", started_at
   and device_* filled, consent_at (the retest's own), sleep_h 7, fatigue 2,
   others_present 0, pointer_self "mouse", tmt_a_* and tmt_b_* as in a full
-  session (layout_version 1), 1 *_placeholder column (sart), pss_total 20,
+  session (layout_version 1), no *_placeholder column, pss_total 20,
   post_* filled, status "complete", finished_at, last_block "thanks"; NO age,
   sex, education, email_left, exclusion_reason. The first session's row with
   the same participant_code is unchanged (still session_type "first", email_left 1).

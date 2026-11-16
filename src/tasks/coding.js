@@ -112,6 +112,9 @@ export function codingMessage(block, ctx) {
       coding_time_ms: counts.time_ms,
       coding_sequence_exhausted: counts.sequence_exhausted,
     });
+    // Leaving the tab, losing focus and leaving fullscreen during the 90 s themselves
+    // (decision 165, as in the TMT, decisions 133, 135): coding_test_hidden_n, ... .
+    for (const [key, value] of Object.entries(state.during ?? {})) summary[`coding_test_${key}`] = value;
     log.main = { ...counts, answers, extra_keys, during_test: state.during };
   }
   return { summary, log };

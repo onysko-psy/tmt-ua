@@ -46,15 +46,20 @@ class EnvironmentTestCase(AppTestCase):
             page.locator(".screen", has_text="Спершу потренуємося на 10 символах").wait_for()
         elif label == "Stroop":
             page.locator(".screen", has_text="Завдання з кольорами").wait_for()
+        elif label == "SART":
+            page.locator(".screen", has_text="Завдання з цифрами").wait_for()
         else:
             page.locator(".placeholder", has_text=label).wait_for()
 
     def next(self, page):
         """Finishes the block on the screen; a TMT block is clicked through."""
-        # Each instruction starts with the end of the task before it (the Stroop one
-        # with "Завдання із символами завершено", the coding one with "Завдання з
-        # кружечками завершено"), so the latest task is asked first.
-        if page.locator(".screen", has_text="Завдання з кольорами").count():
+        # Each instruction starts with the end of the task before it (the SART one with
+        # "Завдання з кольорами завершено", the Stroop one with "Завдання із символами
+        # завершено", the coding one with "Завдання з кружечками завершено"), so the
+        # latest task is asked first.
+        if page.locator(".screen", has_text="Завдання з цифрами").count():
+            self.pass_sart(page)
+        elif page.locator(".screen", has_text="Завдання з кольорами").count():
             self.pass_stroop(page)
         elif page.locator(".screen", has_text="Спершу потренуємося на 10 символах").count():
             self.pass_coding(page)
@@ -173,8 +178,8 @@ class FullscreenTest(EnvironmentTestCase):
                         self.assertIn("coding_correct_n", task_summary)
                     elif task == "stroop":
                         self.assertIn("stroop_effect_ms", task_summary)
-                    elif task not in TMT_IDS:
-                        self.assertEqual(task_summary[f"{task}_placeholder"], 1)
+                    elif task == "sart":
+                        self.assertIn("sart_commission_n", task_summary)
                     self.assertIn("events", task_log["env"])
                 post, post_log = self.summary_of(receiver, "post")
                 # questionnaires are not monitored: only their own answers, no environment columns
@@ -375,11 +380,18 @@ class MonitorTest(EnvironmentTestCase):
                 context, receiver = self.new_context(browser, has_touch=True)
                 page, errors = self.open(browser, "?mode=dev&only=sart" + FAST, context=context)
                 self.placeholder(page, "SART")
-                page.get_by_role("button", name="Далі").tap()
+                self.sart_fast(page)
+                page.get_by_role("button", name="Почати тренування").tap()  # the one touch
+                page.locator(".sart-run").wait_for()
+                self.bot_sart(page)
+                page.get_by_role("button", name="Почати", exact=True).click()  # a mouse click
+                page.locator(".sart-run[data-phase='prepare']").wait_for()
+                self.bot_sart(page)
+                page.locator(".dev-end").wait_for()
                 self.wait_delivered(page)
                 summary, log = self.summary_of(receiver, "sart")
                 self.assertEqual(summary["sart_touch_n"], 1)
-                self.assertEqual(log["env"]["pointer"], {"touch": 1})
+                self.assertEqual(log["env"]["pointer"]["touch"], 1)
                 self.assertEqual(errors, [])
 
 

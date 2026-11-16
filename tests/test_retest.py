@@ -243,8 +243,8 @@ class SessionTest(RetestCase):
                 self.assert_valid_for_receiver(context, messages)
                 self.assertEqual(errors, [])
 
-    def test_a_retest_in_the_main_mode_sends_nothing_while_blocks_are_placeholders(self):
-        """As the first session: the main spreadsheet stays empty until all blocks are built."""
+    def test_a_retest_in_the_main_mode_sends_nothing_while_collection_is_closed(self):
+        """As the first session: the main spreadsheet stays empty until COLLECTION_OPEN (decision 161)."""
         context, receiver, page, errors = self.finish(self.browsers[0], query=f"?r={CODE}")
         expect(page.locator(".message")).to_contain_text("Дякуємо, що пройшли дослідження вдруге!", timeout=15000)
         self.assertEqual(receiver.requests, [])

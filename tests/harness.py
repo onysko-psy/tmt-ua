@@ -173,6 +173,9 @@ class AppTestCase(unittest.TestCase):
             if label == "Stroop":
                 self.pass_stroop(page)
                 continue
+            if label == "SART":
+                self.pass_sart(page)
+                continue
             page.locator(".placeholder", has_text=label).wait_for()
             page.get_by_role("button", name="Далі").click()
 
@@ -471,6 +474,95 @@ class AppTestCase(unittest.TestCase):
         self.bot_stroop(page)
         page.locator(".stroop-run").wait_for(state="detached")
 
+    # ---- SART ----
+
+    def sart_fast(self, page, trials=12, practice=6, mask=100, countdown=200, feedback=40, measure=12):
+        """Shortens the SART through the live parameters (window.tmtuaParams) so that whole
+        sessions pass quickly: fewer trials, a short mask, a short countdown and feedback.
+        The time of the digit (250 ms) is never changed."""
+        page.evaluate(
+            "p => Object.assign(window.tmtuaParams.sart, { mainTrials: p.trials, practiceTrials: p.practice, "
+            "maskMs: p.mask, countdownMs: p.countdown, feedbackMs: p.feedback, measureFrames: p.measure })",
+            {"trials": trials, "practice": practice, "mask": mask, "countdown": countdown,
+             "feedback": feedback, "measure": measure})
+
+    def sart_press(self, page, code="Space", **options):
+        """A synthetic key press on the page (keydown and keyup)."""
+        page.evaluate(
+            "([code, options]) => { for (const type of ['keydown', 'keyup']) window.dispatchEvent("
+            "new KeyboardEvent(type, { code, key: code === 'Space' ? ' ' : code, bubbles: true, cancelable: true, ...options })); }",
+            [code, options])
+
+    def start_sart_training(self, page):
+        """From the instruction to the run of the training (its first trial may already be over)."""
+        page.get_by_role("button", name="Почати тренування").click()
+        # Only the stage is waited for: a digit is on the screen 250 ms, and a wait may miss it;
+        # the bot picks the trials up from wherever the run is.
+        page.locator(".sart-run").wait_for(timeout=30000)
+
+    SART_BOT = """async ({ plan }) => {
+        // Goes through the trials of the run on the screen with synthetic space presses until the
+        // run is over. plan: { delay: ms after the digit was drawn to the press, press3: [trial
+        // indices of 3s that are pressed], omit: [trial indices not pressed], fast: {index: ms
+        // delay (shorter than 100 ms)}, double: [indices pressed twice], hold: [indices where a
+        // repeated key event comes], keys: {index: [codes of other keys]}, limit }.
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const stage = () => document.querySelector('.sart-run');
+        const key = (code, options = {}) => window.dispatchEvent(new KeyboardEvent('keydown',
+            { code, key: code === 'Space' ? ' ' : code, bubbles: true, cancelable: true, ...options }));
+        const limit = plan.limit ?? 100000;
+        let last = null;
+        for (let done = 0; done < limit; done++) {
+            let node;
+            const since = performance.now();
+            for (;;) {
+                node = stage();
+                if (!node) return;
+                if (node.dataset.shown === '1' && node.dataset.trial !== last) break;
+                await sleep(2);
+                if (performance.now() - since > 20000) throw new Error('the bot waited too long');
+            }
+            last = node.dataset.trial;
+            const n = Number(last);
+            const digit = Number(node.dataset.digit);
+            const press = digit === 3 ? (plan.press3 ?? []).includes(n) : !(plan.omit ?? []).includes(n);
+            for (const code of ((plan.keys ?? {})[n] ?? [])) key(code);
+            if ((plan.fast ?? {})[n] !== undefined) { await sleep(plan.fast[n]); key('Space'); }
+            else if (press) {
+                await sleep(plan.delay ?? 200);
+                key('Space');
+                if ((plan.double ?? []).includes(n)) { await sleep(8); key('Space'); }
+                if ((plan.hold ?? []).includes(n)) key('Space', { repeat: true });
+            }
+        }
+    }"""
+
+    def bot_sart(self, page, **plan):
+        """Runs the bot in the run on the screen (see SART_BOT for the plan)."""
+        page.evaluate(self.SART_BOT, {"plan": plan})
+
+    def start_sart(self, page, omit_trials=(), press3=(), repeat=False):
+        """From the instruction through the training (the digits at the trial indices in
+        `omit_trials` of its first attempt are not pressed; with `repeat` a second attempt is
+        passed cleanly) to the first digit of the main part."""
+        self.start_sart_training(page)
+        self.bot_sart(page, omit=list(omit_trials), press3=list(press3))
+        if repeat:
+            page.get_by_role("button", name="Почати тренування").click()
+            page.locator(".sart-run").wait_for()
+            self.bot_sart(page)
+        page.get_by_role("button", name="Почати", exact=True).click()
+        page.locator(".sart-run").wait_for()
+
+    def pass_sart(self, page, short=True):
+        """Gets through the SART block: a clean training and the main part answered rightly
+        (short runs, see sart_fast)."""
+        if short:
+            self.sart_fast(page)
+        self.start_sart(page)
+        self.bot_sart(page)
+        page.locator(".sart-run").wait_for(state="detached")
+
     def session_blocks(self, page, retest=False):
         """(id, label, is a placeholder) of every block, in session order
         (of a retest if asked)."""
@@ -509,6 +601,8 @@ class AppTestCase(unittest.TestCase):
             self.pass_coding(page)
         elif block_id == "stroop":
             self.pass_stroop(page)
+        elif block_id == "sart":
+            self.pass_sart(page)
         elif block_id in FORM_BLOCKS.values():
             self.pass_form(page, block_id)
         elif block_id != "device_check":  # an accepted device sees no screen

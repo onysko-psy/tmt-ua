@@ -5,6 +5,7 @@ import { calibrationScreens, calibrationMessage } from './tasks/calibration.js';
 import { tmtScreens, tmtMessage } from './tasks/tmt.js';
 import { codingScreens, codingMessage } from './tasks/coding.js';
 import { stroopScreens, stroopMessage } from './tasks/stroop.js';
+import { sartScreens, sartMessage } from './tasks/sart.js';
 import {
   consentScreens,
   consentRetestScreens,
@@ -52,6 +53,7 @@ const TASK = { isTask: true };
 const TMT = { ...TASK, build: tmtScreens, message: tmtMessage };
 const CODING = { ...TASK, build: codingScreens, message: codingMessage };
 const STROOP = { ...TASK, build: stroopScreens, message: stroopMessage };
+const SART = { ...TASK, build: sartScreens, message: sartMessage };
 
 export const BLOCKS = [
   block('device_check', 'Перевірка пристрою', 'Т0.5', { build: deviceCheck, message: deviceCheckMessage }),
@@ -65,7 +67,7 @@ export const BLOCKS = [
   block('tmt_b', 'TMT, частина B', 'Т1.2–Т1.4', TMT),
   block('coding', 'Кодування символів', 'Т3.1', CODING),
   block('stroop', 'Stroop', 'Т3.2', STROOP),
-  block('sart', 'SART', 'Т3.3', TASK),
+  block('sart', 'SART', 'Т3.3', SART),
   block('pss10', 'PSS-10', 'Т2.3', { build: pssScreens, message: pssMessage }),
   block('post', 'Питання після тесту', 'Т2.3', { build: postScreens, message: postMessage }),
   block('retest_invite', 'Запрошення на ретест', 'Т2.3', { build: inviteScreens, message: inviteMessage }),

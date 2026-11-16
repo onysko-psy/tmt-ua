@@ -1,4 +1,4 @@
-import { APP_VERSION, RECEIVER_URL } from './config.js';
+import { APP_VERSION, COLLECTION_OPEN, RECEIVER_URL } from './config.js';
 import { texts } from './texts.uk.js';
 import { parseUrl, buildParams, selectBlocks } from './session.js';
 import { blocksFor, isPlaceholder } from './blocks.js';
@@ -8,10 +8,13 @@ import { renderEnvCheck } from './dev-env.js';
 import { renderTmtOptions } from './dev-tmt.js';
 import { renderCodingSymbols } from './dev-coding.js';
 import { renderStroopLooks } from './dev-stroop.js';
+import { renderSartLooks } from './dev-sart.js';
 import { taskScale } from './scale.js';
 import { loadTmtStimuli } from './tmt/stimuli.js';
 import { loadCodingStimuli } from './coding/symbols.js';
 import { loadStroopStimuli } from './stroop/stimuli.js';
+import { loadSartStimuli } from './sart/stimuli.js';
+import { renderSartTiming } from './dev-sart-timing.js';
 import { newSessionId, newParticipantCode } from './data/ids.js';
 import { deviceInfo } from './data/device.js';
 import { createSender } from './data/sender.js';
@@ -82,6 +85,20 @@ async function start() {
         return showMessage(error.message);
       }
     }
+    if (session.devTool === 'sart') {
+      try {
+        return renderSartLooks(session, buildParams(session.overrides));
+      } catch (error) {
+        return showMessage(error.message);
+      }
+    }
+    if (session.devTool === 'sart-timing') {
+      try {
+        return renderSartTiming(session, buildParams(session.overrides));
+      } catch (error) {
+        return showMessage(error.message);
+      }
+    }
     return showMessage(`Unknown dev tool: ${session.devTool}`);
   }
   if (isDev && session.devStart === null && session.devOnly === null) {
@@ -106,14 +123,16 @@ async function start() {
       tmt: await loadTmtStimuli(params.tmt),
       coding: await loadCodingStimuli(),
       stroop: await loadStroopStimuli(),
+      sart: await loadSartStimuli(),
     };
   } catch {
     return showMessage(texts.errors.loadFailed);
   }
 
-  // Until every block is built, main mode sends nothing, so the main
-  // spreadsheet stays empty until data collection starts.
-  const collecting = session.mode !== 'main' || !blocksFor(session).some(isPlaceholder);
+  // Main mode sends nothing until data collection is opened (COLLECTION_OPEN,
+  // decision 161), so the main spreadsheet stays empty until it starts; a
+  // block that is still a placeholder keeps it shut as well.
+  const collecting = session.mode !== 'main' || (COLLECTION_OPEN && !blocksFor(session).some(isPlaceholder));
 
   const badge = isDev ? createDevBadge(session) : null;
   // A retest keeps the participant code of the first session, which the

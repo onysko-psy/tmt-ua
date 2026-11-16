@@ -151,6 +151,9 @@ export function stroopMessage(block, ctx) {
       stroop_dot_repeat_n: counts.dot_repeat_n,
       stroop_time_ms: counts.time_ms,
     });
+    // Leaving the tab, losing focus and leaving fullscreen during the main part itself
+    // (decision 168, as in the TMT and the coding): stroop_test_hidden_n, ... .
+    for (const [key, value] of Object.entries(state.during ?? {})) summary[`stroop_test_${key}`] = value;
     log.main = { ...counts, trials, during_test: state.during };
   }
   return { summary, log };

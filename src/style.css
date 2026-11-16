@@ -680,3 +680,125 @@ body {
 .stroop-run .stroop-area {
   touch-action: none;
 }
+
+/* SART looks page (?mode=dev&tool=sart): the candidate screens in real size,
+   and the screen of the task itself (sart/screen.js). */
+
+.dev-sart {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px 40px;
+  background: #e9ecee;
+  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+.dev-sart h1 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.dev-sart h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.sart-variant {
+  margin: 14px 0;
+  padding: 8px 10px 12px;
+  background: #fff;
+  border: 1px solid #b8bfc4;
+}
+
+.sart-facts {
+  margin: 2px 0 8px;
+  color: #333;
+}
+
+.sart-label {
+  margin: 10px 0 3px;
+  color: #555;
+}
+
+.sart-sizes,
+.sart-digits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 28px;
+  padding: 12px 16px;
+  line-height: 1.1;
+}
+
+.sart-digits {
+  display: block;
+}
+
+.sart-digits .sart-cell {
+  display: inline-block;
+  margin-right: 16px;
+}
+
+.sart-screens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.sart-figure {
+  margin: 0;
+  line-height: 0;
+}
+
+.sart-figure figcaption {
+  margin-top: 3px;
+  color: #444;
+  font: 12px/1.3 system-ui, sans-serif;
+}
+
+.sart-screen {
+  display: flex;
+  flex: none;
+  line-height: 0;
+}
+
+.sart-area {
+  display: block;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* A run of the SART task (sart/run.js): the screen on the middle of the page. */
+
+.sart-run {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  overflow: auto;
+  align-items: safe center;
+  justify-content: safe center;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sart-run .sart-area {
+  touch-action: none;
+}
+
+.sart-timing-table {
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.sart-timing-table th,
+.sart-timing-table td {
+  padding: 3px 10px;
+  border: 1px solid #b8bfc4;
+  text-align: right;
+}
+
+#sart-timing-text {
+  width: min(100%, 720px);
+  font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+}

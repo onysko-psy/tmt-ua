@@ -3,7 +3,13 @@
 // new version number (CLAUDE.md). Decision numbers refer to
 // docs/05-history-and-decisions.md in the private research repo.
 
-export const APP_VERSION = '0.13.0';
+export const APP_VERSION = '0.14.0';
+
+// The safeguard of the main mode (decision 161): while false, a session without
+// ?mode= runs but sends nothing, so that the main spreadsheet stays empty until
+// data collection starts. It is set to true, together with a new version, when
+// the collection starts (decision 26). Pilot and dev modes are not affected.
+export const COLLECTION_OPEN = false;
 
 // Values allowed in the ?mode= URL parameter; no parameter means 'main'.
 // pilot and dev write to the pilot copies of the spreadsheets (decision 53).
@@ -58,10 +64,17 @@ export const PARAMS = {
     feedbackMs: 1500, // training only (decision 153)
   },
   sart: {
+    // The look (digit sizes in mm, the mask) is stimuli/sart-look.json (decision 156).
     practiceTrials: 18, // decision 85
+    practiceRepeatAtOmissions: 9, // decision 160: 9 and more of 16 digits other than 3
     mainTrials: 225, // decision 66
     digitMs: 250, // Robertson et al., 1997
     maskMs: 900, // Robertson et al., 1997
+    countdownMs: 3000, // decision 116
+    feedbackMs: 1500, // training only, after a wrong trial (decision 159)
+    fastMs: 100, // a press sooner than this after the digit is no answer (decision 157)
+    measureFrames: 40, // frames the frame time is measured over
+    frameMsOverride: 0, // for automated checks: 0 = use the measured frame time
   },
   // Screen calibration with a card (decisions 60, 100).
   calibration: {
