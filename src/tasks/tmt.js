@@ -4,8 +4,8 @@ import { TmtPlugin } from '../plugins/tmt.js';
 import { STYLE } from '../tmt/stimuli.js';
 
 // Blocks "tmt_a" and "tmt_b" (T1.2, T1.3): the instruction, the practice, the
-// screen before the test, the test itself. The final set of columns, with
-// B-A and B/A, comes in T1.4.
+// screen before the test, the test itself, and (T1.4) the derived columns
+// B-A and B/A that part B adds to its message.
 //
 // The practice (decisions 58, 107-109) runs the same field as the test but
 // without the time limit and with the corner label. It counts as passed when
@@ -117,6 +117,18 @@ export function tmtScreens(block, ctx) {
   return [intro, practiceLoop, beforeTest, { timeline: [test], conditional_function: () => practice.passed }, timeout];
 }
 
+// B-A (ms) and B/A (3 decimals). A PROPOSAL, not an approved decision: both
+// are filled only when BOTH parts ended complete. On a timeout time_ms is the
+// limit itself, so the difference would be false; then both stay null.
+export function tmtDerived(a, b) {
+  const both = a?.status === 'complete' && b?.status === 'complete';
+  const ok = both && Number.isFinite(a.time_ms) && Number.isFinite(b.time_ms) && a.time_ms > 0;
+  return {
+    tmt_b_minus_a_ms: ok ? b.time_ms - a.time_ms : null,
+    tmt_b_over_a: ok ? Math.round((b.time_ms / a.time_ms) * 1000) / 1000 : null,
+  };
+}
+
 export function tmtMessage(block, ctx) {
   const part = partOf(block);
   const state = ctx.tmt?.[part];
@@ -142,6 +154,8 @@ export function tmtMessage(block, ctx) {
       [`${p}miss_n`]: run.miss_n,
     });
     for (const [key, value] of Object.entries(state.during ?? {})) summary[`${p}test_${key}`] = value;
+    // Part B sees both parts; if part A did not run (dev link only=tmt_b), the columns stay empty.
+    if (part === 'b') Object.assign(summary, tmtDerived(ctx.tmt?.a?.result, state.result));
     const { layout } = ctx.stimuli.tmt;
     if (part === 'a') summary.layout_version = String(layout.layout_version);
     Object.assign(log, {

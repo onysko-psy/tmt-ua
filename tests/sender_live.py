@@ -1,4 +1,4 @@
-"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2).
+"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4).
 
 Not part of the automatic test run: it writes rows into the PILOT storage
 (mode=dev). Prints the session ids; then compare the pilot spreadsheet with
@@ -115,6 +115,22 @@ def main():
             page.wait_for_timeout(8000)  # the receiver needs a few seconds
             report.append(f"{name}: beacon only {session_id}")
             context.close()
+
+            # 3. Part B runs out of time (limit 3.5 s): the derived columns
+            # tmt_b_minus_a_ms and tmt_b_over_a must stay empty (T1.4).
+            context = browser.new_context()
+            page = context.new_page()
+            open_app(page, base + "?mode=dev&start=tmt_a&set.tmt.timeLimitMs=3500")
+            session_id = page.evaluate("window.tmtua.ids.session_id")
+            page.get_by_role("button", name="Почати пробну спробу").wait_for()
+            pass_tmt(page)  # tmt_a within the limit
+            pass_tmt(page, [0, 1, 2])  # tmt_b: three circles, then the limit
+            page.get_by_text("Час на цю частину вийшов").wait_for()
+            page.get_by_role("button", name="Далі").click()
+            page.locator(".placeholder").wait_for()
+            wait_delivered(page)
+            report.append(f"{name}: B timeout {session_id}")
+            context.close()
             browser.close()
 
     server.shutdown()
@@ -139,6 +155,12 @@ Expected in the pilot sessions sheet:
   columns equal to 0; in the session's log folder calibration.json with the
   attempts, tmt_a.json and tmt_b.json with "clicks", "trajectory" and "env",
   and a JSON file per other task with "env" inside
+- each "full session" id also (T1.4): tmt_b_minus_a_ms = tmt_b_time_ms minus
+  tmt_a_time_ms, tmt_b_over_a = tmt_b_time_ms / tmt_a_time_ms to 3 decimals
+  (B has errors and is slower than A, so both are positive, the ratio > 1)
+- each "B timeout" id: tmt_a_status "complete"; tmt_b_status "timeout",
+  tmt_b_time_ms 3500, tmt_b_targets_done 3; tmt_b_minus_a_ms and
+  tmt_b_over_a EMPTY cells
 - each "beacon only" id: one row with tmt_a_status "complete" and the other tmt_a_* columns""")
 
 
