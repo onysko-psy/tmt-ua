@@ -134,10 +134,10 @@ class FullscreenTest(EnvironmentTestCase):
                 self.placeholder(page, "TMT, частина B")
                 self.assertTrue(page.evaluate(IS_FULLSCREEN))
 
-                for label in ["TMT, частина B", "Кодування символів", "Stroop", "SART", "PSS-10",
-                              "Питання після тесту", "Запрошення на ретест", "Подяка"]:
+                for label in ["TMT, частина B", "Кодування символів", "Stroop", "SART"]:
                     self.placeholder(page, label)
                     self.next(page)
+                self.click_through(page, ["PSS-10", "Питання після тесту", "Запрошення на ретест", "Подяка"])
                 expect(page.locator(".dev-end")).to_be_visible()
                 page.wait_for_function("() => document.fullscreenElement === null")
                 self.wait_delivered(page)
@@ -162,7 +162,8 @@ class FullscreenTest(EnvironmentTestCase):
                         self.assertEqual(task_summary[f"{task}_placeholder"], 1)
                     self.assertIn("events", task_log["env"])
                 post, post_log = self.summary_of(receiver, "post")
-                self.assertEqual(post, {"post_placeholder": 1})  # questionnaires are not monitored
+                # questionnaires are not monitored: only their own answers, no environment columns
+                self.assertEqual(set(post), {"post_distraction", "post_interrupted", "post_effort", "post_comment"})
                 self.assertIsNone(post_log)
                 self.assert_valid_for_receiver(context, receiver.accepted)
                 self.assertEqual(errors, [])

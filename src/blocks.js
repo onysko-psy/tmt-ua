@@ -13,6 +13,16 @@ import {
   conditionsScreens,
   conditionsMessage,
 } from './tasks/questionnaires.js';
+import {
+  pssScreens,
+  pssMessage,
+  postScreens,
+  postMessage,
+  inviteScreens,
+  inviteMessage,
+  thanksScreens,
+  thanksMessage,
+} from './tasks/closing.js';
 
 // Blocks of a first session in their fixed order (decision 33;
 // docs/11-technical-plan.md, section 2). build(block, ctx) returns the block's
@@ -51,10 +61,10 @@ export const BLOCKS = [
   block('coding', 'Кодування символів', 'Т3.1', TASK),
   block('stroop', 'Stroop', 'Т3.2', TASK),
   block('sart', 'SART', 'Т3.3', TASK),
-  block('pss10', 'PSS-10', 'Т2.3'),
-  block('post', 'Питання після тесту', 'Т2.3'),
-  block('retest_invite', 'Запрошення на ретест', 'Т2.3'),
-  block('thanks', 'Подяка', 'Т2.3'),
+  block('pss10', 'PSS-10', 'Т2.3', { build: pssScreens, message: pssMessage }),
+  block('post', 'Питання після тесту', 'Т2.3', { build: postScreens, message: postMessage }),
+  block('retest_invite', 'Запрошення на ретест', 'Т2.3', { build: inviteScreens, message: inviteMessage }),
+  block('thanks', 'Подяка', 'Т2.3', { build: thanksScreens, message: thanksMessage }),
 ];
 
 export const isPlaceholder = (b) => b.build === placeholder;

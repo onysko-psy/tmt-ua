@@ -422,7 +422,28 @@ body {
   font-weight: 600;
 }
 
-.form-submit {
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem 1rem;
+  margin-top: 1.2rem;
+}
+
+.field-email {
+  width: 100%;
+  max-width: 24rem;
+  margin-top: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+}
+
+.field-text {
   display: block;
-  margin: 1.2rem auto 0;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 0.3rem;
+  padding: 0.4rem 0.5rem;
+  font: inherit;
+  resize: vertical;
 }

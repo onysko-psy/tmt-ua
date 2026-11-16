@@ -50,6 +50,10 @@ FORM_BLOCKS = {
     "Критерії включення й виключення": "criteria",
     "Біографічна анкета": "demographics",
     "Анкета умов": "conditions",
+    "PSS-10": "pss10",
+    "Питання після тесту": "post",
+    "Запрошення на ретест": "retest_invite",
+    "Подяка": "thanks",
 }
 
 
@@ -209,10 +213,38 @@ class AppTestCase(unittest.TestCase):
         self.answer(page, "pointer", pointer)
         self.submit_form(page)
 
+    def pass_pss(self, page, answers=None):
+        """PSS-10: ten answers 0-4 in the order of the items."""
+        page.locator("fieldset[data-name=pss_1]").wait_for()
+        for number, value in enumerate(answers or [2] * 10, 1):
+            self.answer(page, f"pss_{number}", value)
+        self.submit_form(page)
+
+    def pass_post(self, page, distraction="0", interruption="no", effort="4", comment=None):
+        page.locator("fieldset[data-name=distraction]").wait_for()
+        self.answer(page, "distraction", distraction)
+        self.answer(page, "interruption", interruption)
+        self.answer(page, "effort", effort)
+        if comment:
+            page.locator("#field-comment").fill(comment)
+        self.submit_form(page)
+
+    def pass_invite(self, page, email=None):
+        """The invitation: an address and "send", or "no, thanks"."""
+        page.locator("#field-email").wait_for()
+        if email:
+            page.locator("#field-email").fill(email)
+            page.get_by_role("button", name="Надіслати й завершити").click()
+        else:
+            page.get_by_role("button", name="Ні, дякую").click()
+
     def pass_form(self, page, block_id):
         """Gets through a questionnaire block with ordinary answers."""
+        if block_id == "thanks":
+            return  # no screen of its own
         {"consent": self.pass_consent, "criteria": self.pass_criteria,
-         "demographics": self.pass_demographics, "conditions": self.pass_conditions}[block_id](page)
+         "demographics": self.pass_demographics, "conditions": self.pass_conditions,
+         "pss10": self.pass_pss, "post": self.pass_post, "retest_invite": self.pass_invite}[block_id](page)
 
     def tmt_lead(self, page, label):
         """The instruction screen of a TMT part."""

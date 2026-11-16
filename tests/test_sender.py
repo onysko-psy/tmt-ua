@@ -42,7 +42,8 @@ class SenderTest(AppTestCase):
                 self.assertEqual(len(first["session_id"]), 16)
                 self.assertRegex(first["participant_code"], CODE_RE)
                 self.assertEqual(len(first["participant_code"]), 10)
-                self.assertEqual(rest[0]["summary"], {"post_placeholder": 1})
+                self.assertEqual(rest[0]["summary"], {"post_distraction": 0, "post_interrupted": 0,
+                                                      "post_effort": 4, "post_comment": None})
                 self.assertEqual([m["seq"] for m in receiver.accepted], [1, 2, 3, 4])
                 self.assertEqual(self.outbox_keys(page), [])
                 self.assert_valid_for_receiver(context, receiver.accepted)
@@ -158,7 +159,7 @@ class SenderTest(AppTestCase):
                 expect(page.locator(".message")).to_have_text(texts["data"]["offline"])
 
                 self.set_offline(context, receiver, False)
-                expect(page.locator(".message")).to_have_text(texts["common"]["sessionEnd"], timeout=15000)
+                expect(page.locator(".message")).to_contain_text("Дякуємо за участь!", timeout=15000)
                 # every block but device_check, which sends nothing (decision 97)
                 self.assertEqual(receiver.blocks(), [b[0] for b in blocks[1:]])
                 self.assertEqual({m["mode"] for m in receiver.accepted}, {"pilot"})

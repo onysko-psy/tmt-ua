@@ -1,4 +1,4 @@
-"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2).
+"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2, T2.3).
 
 Not part of the automatic test run: it writes rows into the PILOT storage
 (mode=dev). Prints the session ids; then compare the pilot spreadsheet with
@@ -41,6 +41,25 @@ def pass_questionnaires(page, age=27):
     for name, value in [("sleep", "7"), ("fatigue", "2"), ("others", "no"), ("pointer", "mouse")]:
         page.locator(f'fieldset[data-name="{name}"] input[value="{value}"]').check()
     page.locator("form button[type=submit]").click()
+
+
+ADDRESS = "pilot-check@example.com"  # a made-up address: only for the pilot contacts sheet
+
+
+def pass_closing(page, email=ADDRESS):
+    """PSS-10 (all answers 2), the questions after the tasks, the invitation."""
+    page.locator('fieldset[data-name="pss_1"]').wait_for()
+    for number in range(1, 11):
+        page.locator(f'fieldset[data-name="pss_{number}"] input[value="2"]').check()
+    page.locator("form button[type=submit]").click()
+    page.locator('fieldset[data-name="distraction"]').wait_for()
+    for name, value in [("distraction", "1"), ("interruption", "no"), ("effort", "4")]:
+        page.locator(f'fieldset[data-name="{name}"] input[value="{value}"]').check()
+    page.locator("#field-comment").fill("Live check: no comment.")
+    page.locator("form button[type=submit]").click()
+    page.locator("#field-email").wait_for()
+    page.locator("#field-email").fill(email)
+    page.get_by_role("button", name="Надіслати й завершити").click()
 
 
 def open_app(page, url):
@@ -112,8 +131,8 @@ def main():
             context.set_offline(True)
             # tmt_b: 2 instead of А, a click beside, Б again after Б, 1 instead of 3.
             pass_tmt(page, [0, 2, None, 1, 2, 3, 3, 0] + list(range(4, 25)))
-            click_through(page, 6)  # coding .. retest_invite
-            page.get_by_role("button", name="Далі").click()  # last block
+            click_through(page, 3)  # coding, stroop, sart
+            pass_closing(page)  # pss10 .. retest_invite; thanks has no screen
             page.locator(".dev-end").wait_for()
             queued = page.evaluate("window.tmtua.sender.pending()")
             context.set_offline(False)
@@ -182,7 +201,7 @@ def main():
     print("\n".join(report))
     print("""
 Expected in the pilot sessions sheet:
-- each "full session" id: one row, 7 *_placeholder columns equal to 1,
+- each "full session" id: one row, 3 *_placeholder columns (coding, stroop, sart) equal to 1,
   px_per_mm 4.4393, calibration_card_px 380, calibration_attempts 1,
   calibration_suspect 0, screen_w_mm 288.3, screen_h_mm 162.2,
   fullscreen_status "entered", fullscreen_view_w_mm / _h_mm filled,
@@ -206,6 +225,15 @@ Expected in the pilot sessions sheet:
 - each "B timeout" id: tmt_a_status "complete"; tmt_b_status "timeout",
   tmt_b_time_ms 3500, tmt_b_targets_done 3; tmt_b_minus_a_ms and
   tmt_b_over_a EMPTY cells
+- each "full session" id also (T2.3): pss_1 .. pss_10 all 2, pss_total 20,
+  pss_version "veldbrekht_tavrovetska_2022_appendix_a", post_distraction 1,
+  post_interrupted 0, post_effort 4, post_comment "Live check: no comment.",
+  email_left 1, status "complete", finished_at (ISO), last_block "thanks";
+  NO email in this sheet. In the pilot CONTACTS sheet a row per full session:
+  participant_code of that session, email pilot-check@example.com, created_on
+  today, invite_from today + 7 days, a checkbox "invited", and the ready
+  letter (starts with "Тема: Запрошення на повторне проходження дослідження",
+  holds a link ending ?r=<participant_code>&mode=dev)
 - each "full session" id also (T2.2): consent_at (ISO time), age 27, sex
   "female", education 5, sleep_h 7, fatigue 2, others_present 0, pointer_self
   "mouse"; no status

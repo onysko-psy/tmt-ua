@@ -26,7 +26,7 @@ class AppShellTest(AppTestCase):
                 for block in blocks:
                     self.pass_block(page, *block)
                 texts = self.module(page, "texts.uk.js")["texts"]
-                expect(page.locator(".message")).to_have_text(texts["common"]["sessionEnd"])
+                expect(page.locator(".message")).to_contain_text("Дякуємо за участь!")
                 self.assertEqual(page.locator(".dev-badge").count(), 0)
                 # While some blocks are placeholders, main mode sends nothing,
                 # so the main spreadsheet stays empty until data collection.
@@ -69,9 +69,7 @@ class AppShellTest(AppTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors = self.open(browser, "?mode=dev&start=pss10")
-                for label in ["PSS-10", "Питання після тесту", "Запрошення на ретест", "Подяка"]:
-                    expect(page.locator(".placeholder")).to_contain_text(label)
-                    page.get_by_role("button", name="Далі").click()
+                self.click_through(page, ["PSS-10", "Питання після тесту", "Запрошення на ретест", "Подяка"])
                 expect(page.locator(".dev-end")).to_be_visible()
                 self.assertEqual(errors, [])
 

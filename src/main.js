@@ -13,6 +13,7 @@ import { deviceInfo } from './data/device.js';
 import { createSender } from './data/sender.js';
 import { createMonitor } from './data/monitor.js';
 import { fullscreenGate } from './tasks/fullscreen.js';
+import { completeHtml } from './tasks/closing.js';
 import {
   createFullscreenBanner,
   exitFullscreen,
@@ -24,10 +25,12 @@ import {
 // session blocks in their fixed order, sending each block's data when the
 // block ends.
 
-function showMessage(text) {
-  const message = document.createElement('p');
+// A text, or { html } for the end of a session that went through (own texts).
+function showMessage(content) {
+  const message = document.createElement(content.html ? 'div' : 'p');
   message.className = 'message';
-  message.textContent = text;
+  if (content.html) message.innerHTML = content.html;
+  else message.textContent = content;
   document.body.replaceChildren(message);
 }
 
@@ -95,7 +98,7 @@ async function start() {
   // Set by a block that ends the session early (e.g. 'screen_too_small'):
   // the block finishes, its message carries the status, and nothing after it runs.
   let ending = null;
-  const endText = () => (ending ? texts.end[ending] : texts.common.sessionEnd);
+  const endText = () => (ending ? texts.end[ending] : { html: completeHtml(ctx) });
   const sender = createSender({
     url: RECEIVER_URL,
     base: { ...ids, mode: session.mode, app_version: APP_VERSION },
@@ -145,6 +148,7 @@ async function start() {
     // px per mm for a task: from the calibration; on dev links that skip it,
     // the last dev calibration in this browser or a fallback (scale.js).
     scale: () => taskScale(ctx),
+    ids,
     end: (status) => {
       ending ??= status;
     },

@@ -1,18 +1,23 @@
 import { ParameterType } from '../lib.js';
 
-// A questionnaire screen as a jsPsych trial (T2.2): radio questions and a
-// whole-number question on one page. Every question is required, so the
-// covariates have no gaps (docs/12, 2.9): without an answer the page shows a
-// message under the question and does not go on. Whatever the participant
+// A questionnaire screen as a jsPsych trial (T2.2, T2.3): radio questions, a
+// whole-number question, an e-mail address and a free text on one page. Every
+// question is required, so the covariates have no gaps (docs/12, 2.9), except
+// a free text marked optional: without an answer the page shows a message
+// under the question and does not go on. Whatever the participant
 // typed is kept; nothing is sent from here: the answers go to the block's
 // message.
 //
-// fields: [{ name, type: 'radio' | 'integer', label (HTML),
+// fields: [{ name, type: 'radio' | 'integer' | 'email' | 'text', label (HTML),
 //   options: [{ value, label }] (radio), layout: 'row' | 'column' (radio),
-//   note (HTML under the question), min, max (integer: the plausible range) }]
+//   note (HTML under the question), min, max (integer: the plausible range),
+//   maxLength (text), optional (text: an empty answer is null) }]
 // messages: { required, format } shown under a question.
-// The result is { response: { name: value } }; radio values are the options'
-// values (strings), an integer is a number.
+// secondary: a second button that finishes the page without answers and
+// without checking them ("No, thanks"); the result then has skipped: true.
+// The result is { response: { name: value }, skipped }; radio values are the
+// options' values (strings), an integer is a number, an e-mail a trimmed
+// string, a text a trimmed string or null.
 export class FormPlugin {
   static info = {
     name: 'tmtua-form',
@@ -22,9 +27,11 @@ export class FormPlugin {
       fields: { type: ParameterType.OBJECT },
       messages: { type: ParameterType.OBJECT },
       button: { type: ParameterType.STRING },
+      secondary: { type: ParameterType.STRING, default: null },
     },
     data: {
       response: { type: ParameterType.OBJECT },
+      skipped: { type: ParameterType.BOOL },
       rt: { type: ParameterType.INT },
     },
   };
@@ -46,11 +53,25 @@ export class FormPlugin {
     button.type = 'submit';
     button.className = 'jspsych-btn form-submit';
     button.textContent = trial.button;
-    form.append(button);
+    const actions = document.createElement('div');
+    actions.className = 'form-actions';
+    actions.append(button);
+    form.append(actions);
     root.append(form);
     displayElement.replaceChildren(root);
 
     const shown = performance.now();
+    if (trial.secondary) {
+      const skip = document.createElement('button');
+      skip.type = 'button';
+      skip.className = 'jspsych-btn form-secondary';
+      skip.textContent = trial.secondary;
+      skip.addEventListener('click', () => {
+        displayElement.replaceChildren();
+        this.jsPsych.finishTrial({ response: {}, skipped: true, rt: Math.round(performance.now() - shown) });
+      });
+      actions.append(skip);
+    }
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const response = {};
@@ -65,7 +86,7 @@ export class FormPlugin {
       }
       if (first) return first.focus();
       displayElement.replaceChildren();
-      this.jsPsych.finishTrial({ response, rt: Math.round(performance.now() - shown) });
+      this.jsPsych.finishTrial({ response, skipped: false, rt: Math.round(performance.now() - shown) });
     });
   }
 }
@@ -107,14 +128,17 @@ function buildField(field) {
     };
   }
 
+  if (field.type === 'text') return buildText(field, element, error);
+
   const label = document.createElement('label');
   label.innerHTML = field.label;
   const input = document.createElement('input');
-  input.type = 'text';
-  input.inputMode = 'numeric';
+  const email = field.type === 'email';
+  input.type = email ? 'email' : 'text';
+  if (!email) input.inputMode = 'numeric';
   input.autocomplete = 'off';
   input.name = field.name;
-  input.className = 'field-number';
+  input.className = email ? 'field-email' : 'field-number';
   label.htmlFor = input.id = `field-${field.name}`;
   element.append(label, input);
   appendNote(element, field);
@@ -124,12 +148,41 @@ function buildField(field) {
     error,
     read: () => {
       const text = input.value.trim();
+      if (email) return EMAIL_RE.test(text) && text.length <= 254 ? { value: text } : { problem: 'format' };
       if (text === '') return { problem: 'required' };
       const value = /^\d{1,3}$/.test(text) ? Number(text) : NaN;
       if (!(value >= field.min && value <= field.max)) return { problem: 'format' };
       return { value };
     },
     focus: () => input.focus(),
+  };
+}
+
+// The same pattern as the receiver's (receiver/Code.gs): what it would refuse
+// is not sent.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function buildText(field, element, error) {
+  const label = document.createElement('label');
+  label.innerHTML = field.label;
+  const area = document.createElement('textarea');
+  area.name = field.name;
+  area.rows = 3;
+  area.maxLength = field.maxLength;
+  area.className = 'field-text';
+  label.htmlFor = area.id = `field-${field.name}`;
+  element.append(label, area);
+  appendNote(element, field);
+  element.append(error);
+  return {
+    element,
+    error,
+    read: () => {
+      const text = area.value.trim();
+      if (text === '') return field.optional ? { value: null } : { problem: 'required' };
+      return { value: text };
+    },
+    focus: () => area.focus(),
   };
 }
 
