@@ -380,9 +380,9 @@ class AppTestCase(unittest.TestCase):
     # ---- Stroop (T3.2) ----
 
     def start_stroop_training(self, page):
-        """From the instruction to the first dot of the training."""
+        """From the instruction to the first trial of the training."""
         page.get_by_role("button", name="Почати тренування").click()
-        page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+        page.locator(".stroop-run[data-started='1']").wait_for()
 
     def stroop_fast(self, page, iti=0, feedback=0):
         """Shortens the pauses of the Stroop task through the live parameters
@@ -395,11 +395,9 @@ class AppTestCase(unittest.TestCase):
         box = page.locator(selector).first.bounding_box()
         page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
 
-    def stroop_dot(self, page):
-        """Waits until the dot is drawn and clicks it; waits until the word is drawn;
-        returns (word, ink) of the trial."""
-        page.locator(".stroop-run[data-phase='dot'][data-dot-shown='1']").wait_for()
-        self.stroop_click(page, ".stroop-dot-visible")
+    def stroop_word(self, page):
+        """Waits until the word of the trial is drawn (it comes by itself, itiMs after
+        the previous answer; decision 170); returns (word, ink) of the trial."""
         word = page.locator(".stroop-word[data-shown='1']")
         word.wait_for()
         return word.get_attribute("data-word"), word.get_attribute("data-ink")
@@ -411,8 +409,7 @@ class AppTestCase(unittest.TestCase):
         // Runs trials with synthetic pointer presses until the run is over (or `limit`
         // trials are done). plan: { delay: {congruent, incongruent} ms from the word drawn to
         // the answer, wrong: [trial indices answered with a wrong plate], timeout: [indices
-        // not answered], misses: {index: presses beside the plates}, repeats: [indices that
-        // press the dot again], limit }.
+        // not answered], misses: {index: presses beside the plates}, limit }.
         const until = (fn, ms = 20000) => new Promise((resolve, reject) => {
             const start = performance.now();
             const tick = () => {
@@ -430,15 +427,12 @@ class AppTestCase(unittest.TestCase):
         const order = ['red', 'green', 'blue', 'yellow'];
         const limit = plan.limit ?? 1000;
         for (let done = 0; done < limit; done++) {
-            await until(() => !stage() || (stage().dataset.phase === 'dot' && stage().dataset.dotShown === '1'));
+            const word = await until(() => !stage() || stage().querySelector('.stroop-word[data-shown="1"]'));
             if (!stage()) break;
             const n = Number(stage().dataset.trial);
-            press(stage().querySelector('.stroop-dot-hit'));
-            const word = await until(() => stage().querySelector('.stroop-word[data-shown="1"]'));
             const ink = word.dataset.ink;
             const same = word.dataset.word === ink;
             for (let k = 0; k < ((plan.misses ?? {})[n] ?? 0); k++) press(stage());
-            if ((plan.repeats ?? []).includes(n)) press(stage().querySelector('.stroop-dot-hit'));
             await sleep(((plan.delay ?? {})[same ? 'congruent' : 'incongruent']) ?? 5);
             if ((plan.timeout ?? []).includes(n)) {
                 await until(() => !stage() || stage().dataset.phase !== 'word');
@@ -456,15 +450,15 @@ class AppTestCase(unittest.TestCase):
     def start_stroop(self, page, wrong_trials=(), repeat=False):
         """From the instruction through the training (the trials in `wrong_trials` of its
         first attempt are answered wrongly; with `repeat` a second attempt is passed
-        cleanly) to the first dot of the main part."""
+        cleanly) to the first trial of the main part."""
         self.start_stroop_training(page)
         self.bot_stroop(page, wrong=list(wrong_trials))
         if repeat:
             page.get_by_role("button", name="Почати тренування").click()
-            page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+            page.locator(".stroop-run[data-started='1']").wait_for()
             self.bot_stroop(page)
         page.get_by_role("button", name="Почати", exact=True).click()
-        page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+        page.locator(".stroop-run[data-started='1']").wait_for()
 
     def pass_stroop(self, page):
         """Gets through the Stroop block: a clean training and the main part answered

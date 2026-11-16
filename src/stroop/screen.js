@@ -65,7 +65,8 @@ export function wrapLines(text, maxMm, sizeMm, font) {
 // Builds the screen. spec: one variant of stimuli/stroop-candidates.json (or the
 // chosen one); words: { colorId: 'ЧЕРВОНИЙ', ... }; order: the colour ids in the
 // order of the plates. Returns { root, svg, dot, plates: {id: rect}, word,
-// setWord(colorId | null, inkId), setDotVisible(on), setHint(text | null) }.
+// setWord(colorId | null, inkId), setDotVisible(on), setFeedback(text | null, kind) }.
+// The dot is only a point to look at (decision 170): it takes no clicks.
 export function createStroopScreen({ spec, words, order, area, font, pxPerMm, container = null }) {
   const root = document.createElement('div');
   root.className = 'stroop-screen';
@@ -97,13 +98,8 @@ export function createStroopScreen({ spec, words, order, area, font, pxPerMm, co
   }
 
   const dot = svgEl('g', { class: 'stroop-dot' });
-  dot.append(svgEl('circle', { cx: mm(cx), cy: mm(cy), r: mm(spec.dot_hit_mm / 2), fill: 'transparent', class: 'stroop-dot-hit' }));
   dot.append(svgEl('circle', { cx: mm(cx), cy: mm(cy), r: mm(spec.dot_mm / 2), fill: spec.dot_color, class: 'stroop-dot-visible' }));
   svg.append(dot);
-
-  const hint = label('', cx, cy + spec.hint_below_dot_mm, 4.5, font, { fill: spec.dot_color, class: 'stroop-hint' });
-  hint.style.display = 'none';
-  svg.append(hint);
 
   // The word: SVG text of capital height word_cap_mm, centred above the dot.
   let word = null;
@@ -154,9 +150,5 @@ export function createStroopScreen({ spec, words, order, area, font, pxPerMm, co
       dot.style.display = on ? '' : 'none';
     },
     setFeedback,
-    setHint(text) {
-      hint.textContent = text ?? '';
-      hint.style.display = text ? '' : 'none';
-    },
   };
 }

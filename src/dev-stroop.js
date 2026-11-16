@@ -85,7 +85,7 @@ export async function renderStroopLooks(session, params = PARAMS) {
     section.innerHTML = `<h2>Варіант ${spec.id} · ${spec.name}</h2>
       <p class="stroop-facts">Фон ${spec.bg}. Слово: великі літери висотою ${num(spec.word_cap_mm, 0)} мм, найширше (ЧЕРВОНИЙ)
         ${num(widest, 0)} мм завширшки, центр слова на ${num(spec.word_above_dot_mm, 0)} мм вище точки. Точка Ø${num(spec.dot_mm, 0)} мм
-        (клікабельна зона Ø${num(spec.dot_hit_mm, 0)} мм). Плашки: ${platesText}. Використано по висоті: від ${num(box.top, 0)} мм
+        (лише орієнтир для погляду, на неї не натискають). Плашки: ${platesText}. Використано по висоті: від ${num(box.top, 0)} мм
         вище точки до ${num(box.bottom, 0)} мм нижче (є ${num(data.area.h / 2, 0)} мм вгору й вниз).</p>
       <div class="stroop-swatches">${rows} <span class="stroop-swatch">контраст з фоном</span></div>
       <div class="stroop-trial"></div>

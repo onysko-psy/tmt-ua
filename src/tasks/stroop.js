@@ -31,7 +31,6 @@ export function stroopConfig(mode, ctx, attempt = 0) {
     limits: { responseLimitMs: p.responseLimitMs, itiMs: p.itiMs, feedbackMs: p.feedbackMs },
     texts: training
       ? {
-          dotHint: texts.stroop.dotHint,
           right: texts.stroop.feedbackRight,
           wrong: stroopWrongText,
           timeout: texts.stroop.feedbackTimeout,
@@ -121,7 +120,6 @@ export function stroopMessage(block, ctx) {
       word_cap: look.word_cap_mm,
       word_above_dot: look.word_above_dot_mm,
       dot: look.dot_mm,
-      dot_hit: look.dot_hit_mm,
       plates: look.plates,
     },
     limits: { response_limit_ms: p.responseLimitMs, iti_ms: p.itiMs, feedback_ms: p.feedbackMs },
@@ -148,7 +146,6 @@ export function stroopMessage(block, ctx) {
       stroop_errors_n: counts.errors_n,
       stroop_timeouts_n: counts.timeouts_n,
       stroop_miss_n: counts.miss_n,
-      stroop_dot_repeat_n: counts.dot_repeat_n,
       stroop_time_ms: counts.time_ms,
     });
     // Leaving the tab, losing focus and leaving fullscreen during the main part itself

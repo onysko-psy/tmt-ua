@@ -29,7 +29,7 @@ COLUMNS = CONDITION_COLUMNS | {
     "stroop_practice_attempts_n", "stroop_practice_correct_1", "stroop_practice_correct_2",
     "stroop_colors_version", "stroop_sequence_version",
     "stroop_effect_ms", "stroop_correct_n", "stroop_errors_n", "stroop_timeouts_n",
-    "stroop_miss_n", "stroop_dot_repeat_n", "stroop_time_ms",
+    "stroop_miss_n", "stroop_time_ms",
     # the exits during the main part itself (decision 168)
     "stroop_test_hidden_n", "stroop_test_hidden_ms", "stroop_test_blur_n", "stroop_test_blur_ms",
     "stroop_test_fs_exit_n", "stroop_test_fs_exit_ms",
@@ -208,14 +208,14 @@ class StroopTestCase(AppTestCase):
         page.locator(selector).wait_for()
 
     def drawn(self, page):
-        page.locator(".stroop-run[data-phase='dot'][data-dot-shown='1']").wait_for()
+        page.locator(".stroop-word[data-shown='1']").wait_for()
 
 
 class TrialTest(StroopTestCase):
-    def test_the_screen_is_dark_with_a_dot_four_plates_and_the_hint_in_training(self):
+    def test_the_screen_is_dark_with_a_dot_and_four_plates_and_no_hint(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
-                page, errors, _, _ = self.open_stroop(browser)
+                page, errors, _, _ = self.open_stroop(browser, "&set.stroop.itiMs=3000")
                 self.start_stroop_training(page)
                 self.assertEqual(page.evaluate("() => getComputedStyle(document.querySelector('.stroop-run')).backgroundColor"),
                                  "rgb(43, 43, 43)")  # #2B2B2B
@@ -223,9 +223,10 @@ class TrialTest(StroopTestCase):
                 self.assertEqual(plates.evaluate_all("els => els.map(e => e.dataset.color)"), ORDER)
                 self.assertEqual(plates.evaluate_all("els => els.map(e => e.getAttribute('fill'))"),
                                  [LOOK["colors"][c] for c in ORDER])
-                self.assertEqual(page.locator(".stroop-word").count(), 0)  # no word before the dot is pressed
-                self.assertEqual(page.locator(".stroop-hint").text_content(), "Натисніть точку")
-                self.assertNotEqual(page.locator(".stroop-hint").evaluate("e => getComputedStyle(e).display"), "none")
+                self.assertEqual(page.locator(".stroop-word").count(), 0)  # the word comes after the pause
+                self.assertEqual(page.locator(".stroop-dot-visible").count(), 1)  # the dot is there from the start
+                self.assertEqual(page.locator(".stroop-hint").count(), 0)  # no "press the dot" hint (decision 170)
+                self.assertEqual(page.locator(".stroop-dot-hit").count(), 0)  # the dot takes no clicks
                 self.assertEqual(errors, [])
 
     def test_sizes_are_in_mm(self):
@@ -241,10 +242,10 @@ class TrialTest(StroopTestCase):
                 self.assertAlmostEqual(plate["width"], 36 * px, delta=1)
                 self.assertAlmostEqual(plate["height"], 22 * px, delta=1)
                 self.assertAlmostEqual(page.locator(".stroop-dot-visible").bounding_box()["width"], 6 * px, delta=1)
-                word, ink = self.stroop_dot(page)
+                word, ink = self.stroop_word(page)
                 width = page.locator(".stroop-word").evaluate("e => e.getBBox().width")  # user units are mm
                 self.assertAlmostEqual(width, WORD_EM[word] * 12 / 0.7, delta=3)
-                # The word is above the dot (decision 88), centred on it (in mm of the area).
+                # The word is above the dot, centred on it (in mm of the area).
                 box = page.locator(".stroop-word").evaluate("e => { const b = e.getBBox(); return { x: b.x, y: b.y, w: b.width, h: b.height }; }")
                 self.assertAlmostEqual(box["x"] + box["w"] / 2, 120, delta=1.5)
                 self.assertLess(box["y"] + box["h"], 75 - 3 - 10)  # the dot's centre is at 75 mm, its radius 3 mm
@@ -256,30 +257,18 @@ class TrialTest(StroopTestCase):
                 self.assertEqual(ink_fill, LOOK["colors"][ink])
                 self.assertEqual(errors, [])
 
-    def test_a_press_off_the_dot_does_not_start_the_trial_and_the_dot_is_needed_first(self):
+    def test_the_word_comes_by_itself_after_the_pause_and_the_dot_takes_no_click(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
-                page, errors, _, _ = self.open_stroop(browser)
+                page, errors, _, _ = self.open_stroop(browser, "&set.stroop.itiMs=700", tracked=True)
                 self.start_stroop_training(page)
-                self.stroop_plate(page, "red")  # a plate before the dot
-                page.mouse.click(30, 30)  # the empty page
-                page.wait_for_timeout(150)
-                self.assertEqual(page.locator(".stroop-run").get_attribute("data-phase"), "dot")
-                self.assertEqual(page.locator(".stroop-word").count(), 0)
-                self.stroop_dot(page)
+                self.assertEqual(page.locator(".stroop-run").get_attribute("data-phase"), "pause")
+                self.stroop_click(page, ".stroop-dot-visible")  # the dot is no button
+                self.assertEqual(page.locator(".stroop-run").get_attribute("data-phase"), "pause")
+                self.stroop_word(page)
                 self.assertEqual(page.locator(".stroop-run").get_attribute("data-phase"), "word")
-                self.assertEqual(errors, [])
-
-    def test_the_dot_can_be_pressed_a_little_beside_its_picture(self):
-        for browser in self.browsers:
-            with self.subTest(browser=browser.browser_type.name):
-                page, errors, _, _ = self.open_stroop(browser)
-                self.start_stroop_training(page)
-                page.locator(".stroop-run[data-dot-shown='1']").wait_for()
-                px = page.evaluate("() => window.tmtua.ctx.scale().pxPerMm")
-                box = page.locator(".stroop-dot-visible").bounding_box()
-                page.mouse.click(box["x"] + box["width"] / 2 + 5.5 * px, box["y"] + box["height"] / 2)  # 5.5 mm: inside the 14 mm zone
-                self.phase(page, "word")
+                when = {(p[0], p[2]): p[1] for p in page.evaluate("window.__phases")}
+                self.assertAlmostEqual(when[("word", "0")] - when[("pause", "0")], 700, delta=150)
                 self.assertEqual(errors, [])
 
     def test_a_correct_press_a_wrong_press_and_the_feedback_in_training(self):
@@ -287,14 +276,13 @@ class TrialTest(StroopTestCase):
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, _, _ = self.open_stroop(browser, "&set.stroop.itiMs=250&set.stroop.feedbackMs=400", tracked=True)
                 self.start_stroop_training(page)
-                _, ink = self.stroop_dot(page)
+                _, ink = self.stroop_word(page)
                 self.stroop_plate(page, ink)
                 self.phase(page, "feedback")
                 self.assertEqual(page.locator(".stroop-feedback").get_attribute("data-kind"), "correct")
                 self.assertEqual(page.locator(".stroop-feedback").text_content(), "Правильно")
                 self.assertEqual(page.locator(".stroop-word").count(), 0)  # the word goes at the answer
-                self.phase(page, "dot", 1)
-                word, ink = self.stroop_dot(page)
+                word, ink = self.stroop_word(page)
                 wrong = ORDER[(ORDER.index(ink) + 1) % 4]
                 self.stroop_plate(page, wrong)
                 self.phase(page, "feedback")
@@ -304,14 +292,14 @@ class TrialTest(StroopTestCase):
                 self.assertEqual(lines[0], f"Неправильно: слово надруковане {INSTRUMENTAL[ink]} кольором.")
                 # The feedback is in the neutral colour, not in one of the four.
                 self.assertNotIn(page.locator(".stroop-feedback text").first.get_attribute("fill"), LOOK["colors"].values())
-                self.phase(page, "dot", 2)
+                self.phase(page, "word", 2)
                 phases = page.evaluate("window.__phases")
                 names = [(p[0], p[2]) for p in phases]
-                self.assertEqual(names[:7], [("dot", "0"), ("word", "0"), ("feedback", "0"), ("pause", "0"),
-                                             ("dot", "1"), ("word", "1"), ("feedback", "1")])
+                self.assertEqual(names[:6], [("pause", "0"), ("word", "0"), ("feedback", "0"),
+                                             ("pause", "1"), ("word", "1"), ("feedback", "1")])
                 when = {(p[0], p[2]): p[1] for p in phases}
-                self.assertAlmostEqual(when[("pause", "0")] - when[("feedback", "0")], 400, delta=120)  # the feedback, 1.5 s in the sessions
-                self.assertAlmostEqual(when[("dot", "1")] - when[("pause", "0")], 250, delta=120)  # the pause before the next dot
+                self.assertAlmostEqual(when[("pause", "1")] - when[("feedback", "0")], 400, delta=120)  # the feedback, 0.9 s in the sessions
+                self.assertAlmostEqual(when[("word", "1")] - when[("pause", "1")], 250, delta=120)  # the pause before the next word, 1.2 s in the sessions
                 self.assertEqual(errors, [])
 
     def test_the_word_waits_five_seconds_and_a_late_trial_is_a_miss_with_its_own_feedback(self):
@@ -319,19 +307,19 @@ class TrialTest(StroopTestCase):
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, _, _ = self.open_stroop(browser, "&set.stroop.responseLimitMs=350&set.stroop.feedbackMs=600&set.stroop.itiMs=100")
                 self.start_stroop_training(page)
-                self.stroop_dot(page)
+                self.stroop_word(page)
                 self.phase(page, "feedback")
                 self.assertEqual(page.locator(".stroop-feedback").get_attribute("data-kind"), "timeout")
                 self.assertEqual(page.locator(".stroop-feedback").text_content(), "Час вийшов. Відповідайте трохи швидше.")
                 self.assertEqual(page.locator(".stroop-word").count(), 0)
                 self.assertEqual(errors, [])
 
-    def test_the_limit_in_the_sessions_is_five_seconds_the_pause_half_a_second(self):
+    def test_the_limit_in_the_sessions_is_five_seconds_the_pause_1200_ms_the_feedback_900_ms(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, _, _, _ = self.open_stroop(browser)
                 params = page.evaluate("() => window.tmtuaParams.stroop")
-                self.assertEqual((params["responseLimitMs"], params["itiMs"], params["feedbackMs"]), (5000, 500, 1500))
+                self.assertEqual((params["responseLimitMs"], params["itiMs"], params["feedbackMs"]), (5000, 1200, 900))
                 self.assertEqual((params["practiceTrials"], params["practiceMinCorrect"], params["mainTrials"]), (12, 9, 96))
 
     def test_presses_that_are_no_answer_are_ignored_and_counted_apart(self):
@@ -339,10 +327,10 @@ class TrialTest(StroopTestCase):
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, _, receiver = self.open_stroop(browser, FAST)
                 self.start_stroop(page)
-                _, ink = self.stroop_dot(page)
+                _, ink = self.stroop_word(page)
                 page.mouse.click(40, 40)  # beside the plates
                 page.mouse.click(40, 600)
-                self.stroop_click(page, ".stroop-dot-visible")  # the dot again
+                self.stroop_click(page, ".stroop-dot-visible")  # the dot is no plate either
                 page.mouse.click(*[v + 1 for v in (0, 0)])
                 page.wait_for_timeout(100)
                 self.assertEqual(page.locator(".stroop-run").get_attribute("data-phase"), "word")  # still waiting
@@ -354,11 +342,10 @@ class TrialTest(StroopTestCase):
                 summary, log = self.result(page, receiver)
                 first = log["main"]["trials"][0]
                 self.assertEqual((first["type"], first["resp"], first["ok"]), ("correct", ink, True))
-                self.assertEqual(first["miss_n"], 3)  # (40, 40), (40, 600), (1, 1)
-                self.assertEqual(first["dot_repeat_n"], 1)
-                self.assertEqual(sorted(s["where"] for s in first["stray"] if s["where"] != "pause"), ["dot", "outside", "outside", "outside"])
-                self.assertEqual(summary["stroop_miss_n"], 3)
-                self.assertEqual(summary["stroop_dot_repeat_n"], 1)
+                self.assertEqual(first["miss_n"], 4)  # (40, 40), (40, 600), the dot, (1, 1)
+                self.assertEqual([s["where"] for s in first["stray"] if s["where"] != "pause"], ["outside"] * 4)
+                self.assertEqual(summary["stroop_miss_n"], 4)
+                self.assertNotIn("stroop_dot_repeat_n", summary)
                 self.assertEqual(summary["stroop_errors_n"], 0)
                 self.assertEqual(errors, [])
 
@@ -371,14 +358,14 @@ class TrialTest(StroopTestCase):
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, _, receiver = self.open_stroop(browser, "&set.stroop.itiMs=400&set.stroop.feedbackMs=40")
                 self.start_stroop_training(page)
-                _, ink = self.stroop_dot(page)
+                _, ink = self.stroop_word(page)
                 self.stroop_plate(page, ink)
                 self.phase(page, "pause")
                 self.stroop_plate(page, "green")  # a plate in the pause
                 self.stroop_click(page, ".stroop-plate[data-color='red']")
                 self.drawn(page)
                 self.assertEqual(page.locator(".stroop-run").get_attribute("data-trial"), "1")
-                self.assertEqual(page.locator(".stroop-word").count(), 0)  # still waiting for the dot
+                self.assertEqual(page.locator(".stroop-run").get_attribute("data-phase"), "word")  # the presses in the pause answered nothing
                 self.assertEqual(errors, [])
 
 
@@ -441,19 +428,19 @@ class MainPartTest(StroopTestCase):
                 page, errors, _, _ = self.open_stroop(browser, "&set.stroop.itiMs=300&set.stroop.feedbackMs=40")
                 self.start_stroop(page)
                 page.evaluate(PHASES)  # from the main part on
-                self.assertEqual(page.locator(".stroop-hint").evaluate("e => getComputedStyle(e).display"), "none")
-                _, ink = self.stroop_dot(page)
+                self.assertEqual(page.locator(".stroop-hint").count(), 0)
+                _, ink = self.stroop_word(page)
                 self.stroop_plate(page, ORDER[(ORDER.index(ink) + 1) % 4])  # a wrong answer
                 self.phase(page, "pause")
                 self.assertEqual(page.locator(".stroop-feedback").count(), 0)
                 self.assertEqual(page.locator(".stroop-word").count(), 0)
-                self.assertEqual(page.locator(".stroop-dot").evaluate("e => getComputedStyle(e).display"), "none")  # the dot comes after the pause
-                self.phase(page, "dot", 1)
+                self.assertNotEqual(page.locator(".stroop-dot").evaluate("e => getComputedStyle(e).display"), "none")  # the dot stays
+                self.phase(page, "word", 1)
                 phases = page.evaluate("window.__phases")
                 main = [p for p in phases if p[0] == "feedback"]
                 self.assertEqual(main, [])
                 when = {(p[0], p[2]): p[1] for p in phases}
-                self.assertAlmostEqual(when[("dot", "1")] - when[("pause", "0")], 300, delta=120)
+                self.assertAlmostEqual(when[("word", "1")] - when[("pause", "1")], 300, delta=120)
                 self.assertEqual(errors, [])
 
     def test_the_sequence_is_the_fixed_one_and_every_trial_is_logged(self):
@@ -470,12 +457,11 @@ class MainPartTest(StroopTestCase):
                 times = [t["t_ms"] for t in trials]
                 self.assertEqual(times, sorted(times))
                 for t in trials:
-                    self.assertEqual(set(t), {"i", "word", "ink", "condition", "type", "resp", "ok", "rt_ms", "dot_rt_ms",
-                                              "t_ms", "miss_n", "dot_repeat_n", "stray"})
+                    self.assertEqual(set(t), {"i", "word", "ink", "condition", "type", "resp", "ok", "rt_ms",
+                                              "t_ms", "miss_n", "stray"})
                     self.assertEqual(t["condition"], condition([t["word"], t["ink"]]))
                     self.assertEqual(t["resp"], t["ink"])
                     self.assertGreater(t["rt_ms"], 0)
-                    self.assertGreaterEqual(t["dot_rt_ms"], 0)
                 self.assertEqual(log["main"]["status"], "complete")
                 self.assertEqual(log["main"]["trials_n"], 96)
                 self.assertEqual(summary["stroop_time_ms"], log["main"]["time_ms"])
@@ -508,7 +494,7 @@ class TrainingTest(StroopTestCase):
     def start(self, page, wrong=(), timeout=()):
         """The first training attempt with the given trials answered wrongly or not at all."""
         page.get_by_role("button", name="Почати тренування").click()
-        page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+        page.locator(".stroop-run[data-started='1']").wait_for()
         self.bot_stroop(page, wrong=list(wrong), timeout=list(timeout))
 
     def test_nine_correct_of_twelve_means_no_repeat(self):

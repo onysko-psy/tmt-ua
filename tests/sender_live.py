@@ -39,14 +39,14 @@ def pass_stroop(page, training_wrong=(), repeat=False, wrong=(), timeout=(), del
         page.evaluate(AppTestCase.STROOP_BOT, {"plan": plan})
 
     page.get_by_role("button", name="Почати тренування").click()
-    page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+    page.locator(".stroop-run[data-started='1']").wait_for()
     bot({"wrong": list(training_wrong)})
     if repeat:
         page.get_by_role("button", name="Почати тренування").click()
-        page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+        page.locator(".stroop-run[data-started='1']").wait_for()
         bot({})
     page.get_by_role("button", name="Почати", exact=True).click()
-    page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+    page.locator(".stroop-run[data-started='1']").wait_for()
     bot({"wrong": list(wrong), "timeout": list(timeout), "delay": delay or {"congruent": 20, "incongruent": 70}})
     page.locator(".stroop-run").wait_for(state="detached")
 
@@ -406,7 +406,7 @@ Expected in the pilot sessions sheet:
   stroop_correct_n 90, stroop_errors_n 4, stroop_timeouts_n 2 (trials 3, 10, 20, 50 wrong; 7, 60 not answered),
   per condition (computed from stimuli/stroop-sequence.json): stroop_congruent_* and stroop_incongruent_*
   correct_n, errors_n, timeouts_n, rt_ms (congruent about 20-60, incongruent about 70-110 ms),
-  stroop_effect_ms = incongruent rt minus congruent rt (about 50), stroop_miss_n 0, stroop_dot_repeat_n 0,
+  stroop_effect_ms = incongruent rt minus congruent rt (about 50), stroop_miss_n 0,
   stroop_time_ms filled; ten stroop_* environment columns; stroop.json in the session's Drive folder with
   colors, sequence, sizes_mm, limits, practice.attempts (2, 12 trials each) and main.trials (96,
   "word"/"ink" equal to stimuli/stroop-sequence.json "main"), during_test, env.

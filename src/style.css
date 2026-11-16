@@ -650,11 +650,6 @@ body {
   -webkit-user-select: none;
 }
 
-.stroop-hint {
-  user-select: none;
-  -webkit-user-select: none;
-}
-
 /* A run of the Stroop task (stroop/run.js): the dark screen with the dot, the
    word and the plates, in the middle of the page. */
 

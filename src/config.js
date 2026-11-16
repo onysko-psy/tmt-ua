@@ -3,7 +3,7 @@
 // new version number (CLAUDE.md). Decision numbers refer to
 // docs/05-history-and-decisions.md in the private research repo.
 
-export const APP_VERSION = '0.14.0';
+export const APP_VERSION = '0.14.1';
 
 // The safeguard of the main mode (decision 161): while false, a session without
 // ?mode= runs but sends nothing, so that the main spreadsheet stays empty until
@@ -60,8 +60,8 @@ export const PARAMS = {
     practiceMinCorrect: 9, // decision 92
     mainTrials: 96, // decision 84
     responseLimitMs: 5000, // decision 91
-    itiMs: 500, // decision 93
-    feedbackMs: 1500, // training only (decision 153)
+    itiMs: 1200, // decision 170 (was 500, decision 93): from the answer, or from the end of the feedback, to the next word
+    feedbackMs: 900, // training only (decision 170, was 1500 in decision 153)
   },
   sart: {
     // The look (digit sizes in mm, the mask) is stimuli/sart-look.json (decision 156).
