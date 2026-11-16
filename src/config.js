@@ -3,7 +3,7 @@
 // new version number (CLAUDE.md). Decision numbers refer to
 // docs/05-history-and-decisions.md in the private research repo.
 
-export const APP_VERSION = '0.11.0';
+export const APP_VERSION = '0.12.0';
 
 // Values allowed in the ?mode= URL parameter; no parameter means 'main'.
 // pilot and dev write to the pilot copies of the spreadsheets (decision 53).
@@ -41,6 +41,12 @@ export const PARAMS = {
     durationMs: 90_000, // protocol
     practiceItems: 10, // decision 80
     practiceRepeatAtErrors: 3, // decision 80
+    // Sizes in mm: A PROPOSAL until the author confirms (stage 1 of T3.1).
+    // The same figure size in the key and in the frame, as on the SDMT form.
+    figureMm: 14, // a figure in the key and in the frame
+    keyCellMm: 22, // width of a key cell; nine cells are 198 mm, inside the 240 mm area
+    keyDigitMm: 5, // height of the digits under the figures (TMT letters are 4.5)
+    frameMm: 28, // the frame round the current figure
   },
   stroop: {
     practiceTrials: 12, // decision 92

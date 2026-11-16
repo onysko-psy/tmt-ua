@@ -42,12 +42,17 @@ class EnvironmentTestCase(AppTestCase):
         before a TMT test."""
         if label in TMT_BLOCKS:
             self.tmt_lead(page, label).wait_for()
+        elif label == "Кодування символів":
+            page.locator(".screen", has_text="Завдання із символами").wait_for()
         else:
             page.locator(".placeholder", has_text=label).wait_for()
 
     def next(self, page):
         """Finishes the block on the screen; a TMT block is clicked through."""
-        if page.locator(".screen", has_text="Завдання з кружечками").count():
+        # The coding instruction starts with the end of the circles task, so it is asked first.
+        if page.locator(".screen", has_text="Завдання із символами").count():
+            self.pass_coding(page)
+        elif page.locator(".screen", has_text="Завдання з кружечками").count():
             self.pass_tmt(page)
         else:
             page.get_by_role("button", name="Далі").click()
@@ -158,7 +163,9 @@ class FullscreenTest(EnvironmentTestCase):
                 self.assertEqual(b["tmt_b_test_fs_exit_n"], 0)
                 for task in TASK_IDS:
                     task_summary, task_log = self.summary_of(receiver, task)
-                    if task not in TMT_IDS:
+                    if task == "coding":
+                        self.assertIn("coding_correct_n", task_summary)
+                    elif task not in TMT_IDS:
                         self.assertEqual(task_summary[f"{task}_placeholder"], 1)
                     self.assertIn("events", task_log["env"])
                 post, post_log = self.summary_of(receiver, "post")
@@ -290,23 +297,23 @@ class MonitorTest(EnvironmentTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver = self.new_context(browser)
-                page, errors = self.open(browser, "?mode=dev&start=coding" + FAST, context=context)
-                self.placeholder(page, "Кодування символів")
+                page, errors = self.open(browser, "?mode=dev&start=stroop" + FAST, context=context)
+                self.placeholder(page, "Stroop")
                 page.evaluate("() => window.dispatchEvent(new Event('blur'))")
                 page.wait_for_timeout(300)
                 # A time limit ends the task while the participant is away.
                 page.evaluate("() => window.tmtua.jsPsych.finishTrial()")
-                self.placeholder(page, "Stroop")
+                self.placeholder(page, "SART")
                 page.wait_for_timeout(300)
                 page.evaluate("() => window.dispatchEvent(new Event('focus'))")
                 self.next(page)
                 self.wait_delivered(page)
-                a, _ = self.summary_of(receiver, "coding")
-                b, b_log = self.summary_of(receiver, "stroop")
-                self.assertEqual(a["coding_blur_n"], 1)
-                self.assertGreaterEqual(a["coding_blur_ms"], 250)
-                self.assertEqual(b["stroop_blur_n"], 1)  # still away when the next task started
-                self.assertGreaterEqual(b["stroop_blur_ms"], 250)
+                a, _ = self.summary_of(receiver, "stroop")
+                b, b_log = self.summary_of(receiver, "sart")
+                self.assertEqual(a["stroop_blur_n"], 1)
+                self.assertGreaterEqual(a["stroop_blur_ms"], 250)
+                self.assertEqual(b["sart_blur_n"], 1)  # still away when the next task started
+                self.assertGreaterEqual(b["sart_blur_ms"], 250)
                 self.assertTrue(b_log["env"]["events"][0]["at_start"])
                 self.assertEqual(errors, [])
 
@@ -356,12 +363,12 @@ class MonitorTest(EnvironmentTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver = self.new_context(browser, has_touch=True)
-                page, errors = self.open(browser, "?mode=dev&only=coding" + FAST, context=context)
-                self.placeholder(page, "Кодування символів")
+                page, errors = self.open(browser, "?mode=dev&only=stroop" + FAST, context=context)
+                self.placeholder(page, "Stroop")
                 page.get_by_role("button", name="Далі").tap()
                 self.wait_delivered(page)
-                summary, log = self.summary_of(receiver, "coding")
-                self.assertEqual(summary["coding_touch_n"], 1)
+                summary, log = self.summary_of(receiver, "stroop")
+                self.assertEqual(summary["stroop_touch_n"], 1)
                 self.assertEqual(log["env"]["pointer"], {"touch": 1})
                 self.assertEqual(errors, [])
 

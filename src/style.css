@@ -461,3 +461,112 @@ body {
   font: inherit;
   resize: vertical;
 }
+
+/* Symbol coding figures page (?mode=dev&tool=coding): the sets of figures
+   with the key in real size. */
+
+.dev-coding {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px 40px;
+  background: #e9ecee;
+  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+.dev-coding h1 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.dev-coding h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.coding-set {
+  margin: 14px 0;
+  padding: 8px 10px 12px;
+  background: #fff;
+  border: 1px solid #b8bfc4;
+}
+
+.coding-set > p {
+  margin: 2px 0 8px;
+  color: #333;
+}
+
+.coding-label {
+  margin: 10px 0 3px;
+  color: #555;
+}
+
+.coding-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.coding-row > figure {
+  margin: 0;
+  text-align: center;
+}
+
+.coding-row figcaption {
+  color: #555;
+}
+
+.coding-key,
+.coding-frame,
+.coding-single {
+  display: block;
+  background: #fff;
+  user-select: none;
+}
+
+/* A run of the symbol coding task (coding/run.js): the key over the figure
+   in its frame over the hint, in the middle of a white page. */
+
+.coding-run {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  overflow: auto;
+  align-items: safe center;
+  justify-content: safe center;
+  background: #fff;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.coding-column {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+}
+
+.coding-run .coding-key,
+.coding-run .coding-frame {
+  flex: none;
+}
+
+.coding-hint,
+.coding-wrong {
+  margin: 0;
+  font: var(--coding-text) / 1.4 system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+  text-align: center;
+}
+
+.coding-hint {
+  margin-top: 0.8em;
+}
+
+.coding-wrong {
+  min-height: 1.4em;
+  margin-top: 0.4em;
+  color: #b00020;
+  font-weight: 600;
+}

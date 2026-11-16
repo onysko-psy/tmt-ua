@@ -65,7 +65,7 @@ const round1 = (x) => Math.round(x * 10) / 10;
 // The moment the browser registered the event, on the performance.now()
 // clock. Some browsers may report event times on another clock; then the
 // time the handler runs is taken.
-function eventTime(event) {
+export function eventTime(event) {
   const now = performance.now();
   return event.timeStamp > 0 && Math.abs(now - event.timeStamp) < 5000 ? event.timeStamp : now;
 }

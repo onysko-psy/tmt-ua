@@ -1,4 +1,4 @@
-"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2, T2.3, T2.4).
+"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2, T2.3, T2.4, T3.1).
 
 Not part of the automatic test run: it writes rows into the PILOT storage
 (mode=dev). Prints the session ids; then compare the pilot spreadsheet with
@@ -9,11 +9,12 @@ the expectations printed at the end. Run from the app/ folder:
 
 import functools
 import http.server
+import sys
 import threading
 
 from playwright.sync_api import sync_playwright
 
-from harness import APP_DIR, RECEIVER_GLOB, TMT_POINTS, QuietHandler
+from harness import APP_DIR, RECEIVER_GLOB, TMT_POINTS, AppTestCase, QuietHandler
 
 
 def click_through(page, count):
@@ -37,6 +38,43 @@ def pass_questionnaires(page, age=27):
     page.locator('fieldset[data-name="education"] input[value="5"]').check()
     page.locator("form button[type=submit]").click()
     pass_conditions(page)
+
+
+# The training of the coding task: the first `wrong` figures are first answered
+# with a wrong digit, then rightly (synthetic key events, one per frame).
+TRAINING_BOT = """async (wrong) => {
+    const frame = () => document.querySelector('.coding-frame');
+    const press = (digit) => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit' + digit, bubbles: true }));
+    const frames = (n) => new Promise(resolve => { let i = 0; const tick = () => (++i >= n ? resolve() : requestAnimationFrame(tick)); tick(); });
+    for (let n = 0; frame(); n++) {
+        await frames(3);
+        const digit = Number(frame().dataset.symbol);
+        if (n < wrong) { press(digit % 9 + 1); await frames(3); }
+        press(digit);
+        await frames(2);
+    }
+}"""
+
+
+def pass_coding(page, training_wrong=0, answers=30, wrong=(), extra_keys=False):
+    """The coding block: the instruction, the training (a repeat if 3 or more
+    wrong digits), the main part with `answers` answers (those at the
+    positions in `wrong` are wrong) and the extra keys, until its time (set in
+    the link) is over."""
+    page.get_by_role("button", name="Почати тренування").click()
+    page.locator(".coding-frame").wait_for()
+    page.evaluate(TRAINING_BOT, training_wrong)
+    if training_wrong >= 3:
+        page.get_by_role("button", name="Почати тренування").click()
+        page.locator(".coding-frame").wait_for()
+        page.evaluate(TRAINING_BOT, 0)
+    page.get_by_role("button", name="Почати", exact=True).click()
+    page.locator(".coding-frame[data-shown='1']").wait_for()
+    if extra_keys:
+        page.evaluate("""() => { for (const code of ['KeyA', 'Space', 'Digit0'])
+            window.dispatchEvent(new KeyboardEvent('keydown', { code, bubbles: true })); }""")
+    page.evaluate(AppTestCase.CODING_BOT, {"limit": answers, "wrong": list(wrong)})
+    page.locator(".coding-run").wait_for(state="detached", timeout=20_000)
 
 
 def pass_conditions(page):
@@ -71,7 +109,11 @@ def pass_closing(page, email=ADDRESS):
     page.get_by_role("button", name="Надіслати й завершити").click()
 
 
+CONSOLE = []  # the page's errors and warnings, for the diagnosis of a stuck queue
+
+
 def open_app(page, url):
+    page.on("console", lambda m: CONSOLE.append(m.text[:300]) if m.type in ("error", "warning") else None)
     page.goto(url)
     page.wait_for_function("() => document.documentElement.dataset.tmtuaReady === '1'")
 
@@ -109,7 +151,12 @@ def calibrate(page, card_px=380):
 
 
 def wait_delivered(page):
-    page.wait_for_function("() => window.tmtua.sender.pending() === 0", timeout=120_000)
+    try:
+        page.wait_for_function("() => window.tmtua.sender.pending() === 0", timeout=300_000)
+    except Exception:
+        state = page.evaluate("({ pending: window.tmtua.sender.pending(), rejected: window.tmtua.sender.rejected() })")
+        print("NOT DELIVERED:", state, "| console:", CONSOLE[-8:], flush=True)
+        raise
 
 
 def main():
@@ -120,7 +167,8 @@ def main():
     report = []
 
     with sync_playwright() as pw:
-        for browser_type in (pw.chromium, pw.webkit):
+        wanted = sys.argv[1:] or ["chromium", "webkit"]  # e.g. `sender_live.py chromium`
+        for browser_type in [getattr(pw, name) for name in wanted]:
             browser = browser_type.launch()
             name = browser_type.name
 
@@ -128,7 +176,7 @@ def main():
             # back. device_check shows no screen on a desktop and sends nothing.
             context = browser.new_context()
             page = context.new_page()
-            open_app(page, base + "?mode=dev&start=device_check")
+            open_app(page, base + "?mode=dev&start=device_check&set.coding.durationMs=4000")
             session_id = page.evaluate("window.tmtua.ids.session_id")
             pass_questionnaires(page)  # consent .. conditions
             calibrate(page)
@@ -140,7 +188,10 @@ def main():
             context.set_offline(True)
             # tmt_b: 2 instead of А, a click beside, Б again after Б, 1 instead of 3.
             pass_tmt(page, [0, 2, None, 1, 2, 3, 3, 0] + list(range(4, 25)))
-            click_through(page, 3)  # coding, stroop, sart
+            # coding: 3 wrong digits in the training (so a repeat), then 30 answers
+            # of the main part, 3 of them wrong (positions 3, 10, 20), and 3 extra keys.
+            pass_coding(page, training_wrong=3, answers=30, wrong=[3, 10, 20], extra_keys=True)
+            click_through(page, 2)  # stroop, sart
             pass_closing(page)  # pss10 .. retest_invite; thanks has no screen
             page.locator(".dev-end").wait_for()
             queued = page.evaluate("window.tmtua.sender.pending()")
@@ -154,7 +205,7 @@ def main():
             # ?r=CODE, no biography, no invitation; the end marks the contacts.
             context = browser.new_context()
             page = context.new_page()
-            open_app(page, base + f"?mode=dev&r={first_code}&start=device_check")
+            open_app(page, base + f"?mode=dev&r={first_code}&start=device_check&set.coding.durationMs=4000")
             session_id = page.evaluate("window.tmtua.ids.session_id")
             page.get_by_role("button", name="Я погоджуюся").click()
             pass_conditions(page)
@@ -164,7 +215,8 @@ def main():
             page.get_by_role("button", name="Увімкнути повноекранний режим").click()
             pass_tmt(page)
             pass_tmt(page)
-            click_through(page, 3)
+            pass_coding(page, training_wrong=0, answers=30)  # the same 30 figures, no errors
+            click_through(page, 2)
             pass_closing(page, email=None)
             page.locator(".dev-end").wait_for()
             wait_delivered(page)
@@ -218,7 +270,7 @@ def main():
             pass_tmt(page, [0, 1, 2])  # tmt_b: three circles, then the limit
             page.get_by_text("Час на цю частину вийшов").wait_for()
             page.get_by_role("button", name="Далі").click()
-            page.locator(".placeholder").wait_for()
+            page.get_by_text("Завдання із символами").first.wait_for()  # the coding instruction follows
             wait_delivered(page)
             report.append(f"{name}: B timeout {session_id}")
             context.close()
@@ -254,7 +306,7 @@ def main():
     print("\n".join(report))
     print("""
 Expected in the pilot sessions sheet:
-- each "full session" id: one row, 3 *_placeholder columns (coding, stroop, sart) equal to 1,
+- each "full session" id: one row, 2 *_placeholder columns (stroop, sart) equal to 1 (coding is real since T3.1),
   px_per_mm 4.4393, calibration_card_px 380, calibration_attempts 1,
   calibration_suspect 0, screen_w_mm 288.3, screen_h_mm 162.2,
   fullscreen_status "entered", fullscreen_view_w_mm / _h_mm filled,
@@ -275,6 +327,16 @@ Expected in the pilot sessions sheet:
 - each "full session" id also (T1.4): tmt_b_minus_a_ms = tmt_b_time_ms minus
   tmt_a_time_ms, tmt_b_over_a = tmt_b_time_ms / tmt_a_time_ms to 3 decimals
   (B has errors and is slower than A, so both are positive, the ratio > 1)
+- each "full session" id (T3.1): coding_practice_attempts_n 2, coding_practice_errors_1 3,
+  coding_practice_errors_2 0, coding_symbols_version "1", coding_sequence_version "1",
+  coding_answers_n 30, coding_errors_n 3, coding_correct_n 27, coding_extra_keys_n 3,
+  coding_time_ms 4000, coding_sequence_exhausted 0; ten coding_* environment columns;
+  coding.json in the session's Drive folder with practice.attempts (2), main.answers (30,
+  their "symbol" equal to the first 30 numbers of stimuli/coding-sequence.json), main.extra_keys
+  (3 "not_digit"), during_test, env.
+- each "RETEST" id of a code (T3.1): coding_practice_attempts_n 1, coding_practice_errors_1 0,
+  coding_practice_errors_2 EMPTY, coding_answers_n 30, coding_errors_n 0, coding_correct_n 30,
+  coding_extra_keys_n 0, and the same 30 "symbol" values in coding.json as in the first session.
 - each "B timeout" id: tmt_a_status "complete"; tmt_b_status "timeout",
   tmt_b_time_ms 3500, tmt_b_targets_done 3; tmt_b_minus_a_ms and
   tmt_b_over_a EMPTY cells
@@ -299,7 +361,7 @@ Expected in the pilot sessions sheet:
   equal to the code printed in the line, session_type "retest", started_at
   and device_* filled, consent_at (the retest's own), sleep_h 7, fatigue 2,
   others_present 0, pointer_self "mouse", tmt_a_* and tmt_b_* as in a full
-  session (layout_version 1), 3 *_placeholder columns, pss_total 20,
+  session (layout_version 1), 2 *_placeholder columns, pss_total 20,
   post_* filled, status "complete", finished_at, last_block "thanks"; NO age,
   sex, education, email_left, exclusion_reason. The first session's row with
   the same participant_code is unchanged (still session_type "first", email_left 1).

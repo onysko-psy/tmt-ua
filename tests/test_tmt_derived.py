@@ -97,7 +97,7 @@ class DerivedSessionTest(AppTestCase):
             page.locator(".tmt-run").wait_for(state="detached")
 
     def delivered(self, page, receiver):
-        page.locator(".placeholder").wait_for()  # the block after part B
+        page.locator(".screen", has_text="Завдання із символами").wait_for()  # the block after part B (the coding instruction)
         self.wait_delivered(page)
         by_block = {m["block"]: m for m in receiver.accepted}
         return by_block

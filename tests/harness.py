@@ -167,6 +167,9 @@ class AppTestCase(unittest.TestCase):
             if label in FORM_BLOCKS:
                 self.pass_form(page, FORM_BLOCKS[label])
                 continue
+            if label == "Кодування символів":
+                self.pass_coding(page)
+                continue
             page.locator(".placeholder", has_text=label).wait_for()
             page.get_by_role("button", name="Далі").click()
 
@@ -290,6 +293,84 @@ class AppTestCase(unittest.TestCase):
         self.click_tmt(page, self.start_tmt(page, label))
         page.locator(".tmt-run").wait_for(state="detached")
 
+    # ---- symbol coding (T3.1) ----
+
+    def coding_symbol(self, page):
+        """The digit (1-9) of the figure now in the frame."""
+        return int(page.locator(".coding-frame").get_attribute("data-symbol"))
+
+    def start_coding_training(self, page):
+        """From the instruction to the first figure of the training."""
+        page.get_by_role("button", name="Почати тренування").click()
+        page.locator(".coding-frame").wait_for()
+
+    def coding_press(self, page, digit, numpad=False):
+        """A real key press (a trusted event); digits by their place on the
+        keyboard, top row or numeric pad."""
+        page.keyboard.press(f"{'Numpad' if numpad else 'Digit'}{digit}")
+
+    def coding_answer(self, page, wrong=False):
+        """Answers the figure on the screen with a real key press, rightly or
+        wrongly; waits until the next figure is in the frame (or the run is
+        over). Returns the digit of the figure that was answered."""
+        page.locator(".coding-frame[data-shown='1']").wait_for()  # the figure has to be drawn first
+        digit = self.coding_symbol(page)
+        press = digit % 9 + 1 if wrong else digit
+        self.coding_press(page, press)
+        page.wait_for_function(
+            "d => { const f = document.querySelector('.coding-frame'); return !f || f.dataset.symbol !== String(d) "
+            "|| document.querySelector('.coding-wrong').style.visibility === 'visible'; }", arg=digit)
+        return digit
+
+    def pass_coding_training(self, page, wrong=0):
+        """The 10 figures of one training attempt; the first `wrong` of them
+        are answered wrongly once before the right digit."""
+        for number in range(10):
+            if number < wrong:
+                self.coding_answer(page, wrong=True)
+            self.coding_answer(page)
+        page.locator(".coding-run").wait_for(state="detached")
+
+    def start_coding(self, page, wrong=0):
+        """From the instruction through the training (with `wrong` errors in
+        its first attempt; a repeat is passed cleanly) to the first figure of
+        the main part."""
+        self.start_coding_training(page)
+        self.pass_coding_training(page, wrong)
+        if wrong >= 3:
+            page.get_by_role("button", name="Почати тренування").click()
+            page.locator(".coding-frame").wait_for()
+            self.pass_coding_training(page)
+        page.get_by_role("button", name="Почати", exact=True).click()
+        page.locator(".coding-frame").wait_for()
+
+    CODING_BOT = """async ({ limit, wrong }) => {
+        // Answers with synthetic key events, one per frame: rightly, except
+        // the answers at the given positions (from 0), which are wrong. Stops
+        // after `limit` answers or when the run is over.
+        const frame = () => document.querySelector('.coding-frame');
+        for (let n = 0; n < limit && frame(); n++) {
+            let digit = Number(frame().dataset.symbol);
+            if (wrong.includes(n)) digit = digit % 9 + 1;
+            // one frame, so that the figure is drawn; the timer is for a page that gets no frames
+            await new Promise(resolve => { requestAnimationFrame(resolve); setTimeout(resolve, 200); });
+            window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Digit' + digit, bubbles: true }));
+        }
+    }"""
+
+    def bot_coding(self, page, limit=1000, wrong=()):
+        """Runs the bot in the main part: `limit` answers, those at the
+        positions in `wrong` wrong (the whole sequence is 180)."""
+        page.evaluate(self.CODING_BOT, {"limit": limit, "wrong": list(wrong)})
+
+    def pass_coding(self, page, answers=1000):
+        """Gets through the coding block: a clean training and the main part
+        answered rightly and fast (the whole sequence of 180 figures by
+        default, so the main part ends at once)."""
+        self.start_coding(page)
+        self.bot_coding(page, answers)
+        page.locator(".coding-run").wait_for(state="detached")
+
     def session_blocks(self, page, retest=False):
         """(id, label, is a placeholder) of every block, in session order
         (of a retest if asked)."""
@@ -324,6 +405,8 @@ class AppTestCase(unittest.TestCase):
             page.get_by_role("button", name="Увімкнути повноекранний режим").click()
         elif block_id in TMT_IDS:
             self.pass_tmt(page, label)
+        elif block_id == "coding":
+            self.pass_coding(page)
         elif block_id in FORM_BLOCKS.values():
             self.pass_form(page, block_id)
         elif block_id != "device_check":  # an accepted device sees no screen

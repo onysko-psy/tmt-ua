@@ -6,8 +6,10 @@ import { initJsPsych, libsLoaded } from './lib.js';
 import { renderDevMenu, createDevBadge, renderDevEnd } from './dev.js';
 import { renderEnvCheck } from './dev-env.js';
 import { renderTmtOptions } from './dev-tmt.js';
+import { renderCodingSymbols } from './dev-coding.js';
 import { taskScale } from './scale.js';
 import { loadTmtStimuli } from './tmt/stimuli.js';
+import { loadCodingStimuli } from './coding/symbols.js';
 import { newSessionId, newParticipantCode } from './data/ids.js';
 import { deviceInfo } from './data/device.js';
 import { createSender } from './data/sender.js';
@@ -64,6 +66,13 @@ async function start() {
         return showMessage(error.message);
       }
     }
+    if (session.devTool === 'coding') {
+      try {
+        return renderCodingSymbols(session, buildParams(session.overrides));
+      } catch (error) {
+        return showMessage(error.message);
+      }
+    }
     return showMessage(`Unknown dev tool: ${session.devTool}`);
   }
   if (isDev && session.devStart === null && session.devOnly === null) {
@@ -79,11 +88,11 @@ async function start() {
     return showMessage(error.message);
   }
 
-  // The layouts and the font of the TMT circles: without them the session
-  // does not start.
+  // The layouts and the font of the TMT circles, the figures and the sequence
+  // of the coding task: without them the session does not start.
   let stimuli;
   try {
-    stimuli = { tmt: await loadTmtStimuli(params.tmt) };
+    stimuli = { tmt: await loadTmtStimuli(params.tmt), coding: await loadCodingStimuli() };
   } catch {
     return showMessage(texts.errors.loadFailed);
   }

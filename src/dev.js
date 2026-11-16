@@ -36,6 +36,8 @@ export function renderDevMenu(blocks, session) {
         повноекранному режимі, вихід із вкладки, масштаб. Нічого не надсилає.</p>
       <p><a href="${devUrl(session, { tool: 'tmt' })}">Стимули TMT</a>: розташування, розміри й
         шрифт у справжньому розмірі (спершу пройдіть калібрування в цьому браузері). Нічого не надсилає.</p>
+      <p><a href="${devUrl(session, { tool: 'coding' })}">Фігурки кодування</a>: набори фігурок і ключ
+        у справжньому розмірі (так само потрібне калібрування). Нічого не надсилає.</p>
       <table><tbody>${rows}</tbody></table>
       <p class="dev-hint">Параметри з <code>config.js</code> можна змінити в адресі,
         наприклад <code>&amp;set.tmt.timeLimitMs=20000</code>.</p>
