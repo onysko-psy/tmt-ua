@@ -44,6 +44,13 @@ TMT_POINTS = """() => {
 
 TMT_BLOCKS = {"TMT, частина A": "Частина 1", "TMT, частина B": "Частина 2"}
 TMT_IDS = {"tmt_a": "TMT, частина A", "tmt_b": "TMT, частина B"}
+# Questionnaire blocks (T2.2), by the label in the dev menu.
+FORM_BLOCKS = {
+    "Згода": "consent",
+    "Критерії включення й виключення": "criteria",
+    "Біографічна анкета": "demographics",
+    "Анкета умов": "conditions",
+}
 
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
@@ -153,6 +160,9 @@ class AppTestCase(unittest.TestCase):
             if label in TMT_BLOCKS:
                 self.pass_tmt(page, label)
                 continue
+            if label in FORM_BLOCKS:
+                self.pass_form(page, FORM_BLOCKS[label])
+                continue
             page.locator(".placeholder", has_text=label).wait_for()
             page.get_by_role("button", name="Далі").click()
 
@@ -160,6 +170,49 @@ class AppTestCase(unittest.TestCase):
         """Waits for a TMT field and returns where to click (TMT_POINTS)."""
         page.locator(".tmt-run").wait_for()
         return page.evaluate(TMT_POINTS)
+
+    def answer(self, page, name, value):
+        """Answers one question of a form: a radio option by its code, or a
+        whole number typed into the age field."""
+        if name == "age":
+            page.locator("#field-age").fill(str(value))
+        else:
+            page.locator(f'fieldset[data-name="{name}"] input[value="{value}"]').check()
+
+    def submit_form(self, page):
+        page.locator("form button[type=submit]").click()
+
+    def pass_consent(self, page, agree=True):
+        page.locator(".consent").wait_for()
+        page.get_by_role("button", name="Я погоджуюся" if agree else "Я не погоджуюся").click()
+
+    def pass_criteria(self, page, age=27, tbi="no", color_vision="no"):
+        page.locator(".form").wait_for()
+        self.answer(page, "age", age)
+        self.answer(page, "tbi", tbi)
+        self.answer(page, "color_vision", color_vision)
+        self.submit_form(page)
+
+    def pass_demographics(self, page, sex="female", education="5"):
+        page.locator("fieldset[data-name=sex]").wait_for()
+        self.answer(page, "sex", sex)
+        self.answer(page, "education", education)
+        self.submit_form(page)
+
+    def pass_conditions(self, page, sleep="7", fatigue="2", others="no", pointer="mouse"):
+        page.locator(".screen", has_text="Перед завданнями").wait_for()
+        page.get_by_role("button", name="Далі").click()
+        page.locator("fieldset[data-name=sleep]").wait_for()
+        self.answer(page, "sleep", sleep)
+        self.answer(page, "fatigue", fatigue)
+        self.answer(page, "others", others)
+        self.answer(page, "pointer", pointer)
+        self.submit_form(page)
+
+    def pass_form(self, page, block_id):
+        """Gets through a questionnaire block with ordinary answers."""
+        {"consent": self.pass_consent, "criteria": self.pass_criteria,
+         "demographics": self.pass_demographics, "conditions": self.pass_conditions}[block_id](page)
 
     def tmt_lead(self, page, label):
         """The instruction screen of a TMT part."""
@@ -237,6 +290,8 @@ class AppTestCase(unittest.TestCase):
             page.get_by_role("button", name="Увімкнути повноекранний режим").click()
         elif block_id in TMT_IDS:
             self.pass_tmt(page, label)
+        elif block_id in FORM_BLOCKS.values():
+            self.pass_form(page, block_id)
         elif block_id != "device_check":  # an accepted device sees no screen
             raise AssertionError(f"no way through block {block_id}")
 

@@ -1,4 +1,4 @@
-"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4).
+"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2).
 
 Not part of the automatic test run: it writes rows into the PILOT storage
 (mode=dev). Prints the session ids; then compare the pilot spreadsheet with
@@ -22,6 +22,25 @@ def click_through(page, count):
         text = page.locator(".placeholder").text_content()
         page.get_by_role("button", name="Далі").click()
         page.wait_for_function("t => document.querySelector('.placeholder')?.textContent !== t", arg=text)
+
+
+def pass_questionnaires(page, age=27):
+    """Consent, criteria, biography, the screen before the tasks and the
+    conditions questionnaire, with ordinary answers."""
+    page.get_by_role("button", name="Я погоджуюся").click()
+    page.locator("#field-age").fill(str(age))
+    for name, value in [("tbi", "no"), ("color_vision", "no")]:
+        page.locator(f'fieldset[data-name="{name}"] input[value="{value}"]').check()
+    page.locator("form button[type=submit]").click()
+    page.locator('fieldset[data-name="sex"]').wait_for()
+    page.locator('fieldset[data-name="sex"] input[value="female"]').check()
+    page.locator('fieldset[data-name="education"] input[value="5"]').check()
+    page.locator("form button[type=submit]").click()
+    page.get_by_role("button", name="Далі").click()  # the screen before the tasks
+    page.locator('fieldset[data-name="sleep"]').wait_for()
+    for name, value in [("sleep", "7"), ("fatigue", "2"), ("others", "no"), ("pointer", "mouse")]:
+        page.locator(f'fieldset[data-name="{name}"] input[value="{value}"]').check()
+    page.locator("form button[type=submit]").click()
 
 
 def open_app(page, url):
@@ -83,7 +102,7 @@ def main():
             page = context.new_page()
             open_app(page, base + "?mode=dev&start=device_check")
             session_id = page.evaluate("window.tmtua.ids.session_id")
-            click_through(page, 4)  # consent .. conditions
+            pass_questionnaires(page)  # consent .. conditions
             calibrate(page)
             page.locator(".dev-square").wait_for()  # the 100 mm square, dev only
             page.get_by_role("button", name="Далі").click()
@@ -131,13 +150,39 @@ def main():
             wait_delivered(page)
             report.append(f"{name}: B timeout {session_id}")
             context.close()
+
+            # 4. No consent: a row with the status alone (T2.2).
+            context = browser.new_context()
+            page = context.new_page()
+            open_app(page, base + "?mode=dev&start=consent")
+            session_id = page.evaluate("window.tmtua.ids.session_id")
+            page.get_by_role("button", name="Я не погоджуюся").click()
+            page.locator(".dev-end").wait_for()
+            wait_delivered(page)
+            report.append(f"{name}: no consent {session_id}")
+            context.close()
+
+            # 5. Exclusion by age 50: the reason alone (T2.2, decision 86).
+            context = browser.new_context()
+            page = context.new_page()
+            open_app(page, base + "?mode=dev&start=consent")
+            session_id = page.evaluate("window.tmtua.ids.session_id")
+            page.get_by_role("button", name="Я погоджуюся").click()
+            page.locator("#field-age").fill("50")
+            for field, value in [("tbi", "yes"), ("color_vision", "yes")]:
+                page.locator(f'fieldset[data-name="{field}"] input[value="{value}"]').check()
+            page.locator("form button[type=submit]").click()
+            page.locator(".dev-end").wait_for()
+            wait_delivered(page)
+            report.append(f"{name}: excluded by age {session_id}")
+            context.close()
             browser.close()
 
     server.shutdown()
     print("\n".join(report))
     print("""
 Expected in the pilot sessions sheet:
-- each "full session" id: one row, 11 *_placeholder columns equal to 1,
+- each "full session" id: one row, 7 *_placeholder columns equal to 1,
   px_per_mm 4.4393, calibration_card_px 380, calibration_attempts 1,
   calibration_suspect 0, screen_w_mm 288.3, screen_h_mm 162.2,
   fullscreen_status "entered", fullscreen_view_w_mm / _h_mm filled,
@@ -161,6 +206,14 @@ Expected in the pilot sessions sheet:
 - each "B timeout" id: tmt_a_status "complete"; tmt_b_status "timeout",
   tmt_b_time_ms 3500, tmt_b_targets_done 3; tmt_b_minus_a_ms and
   tmt_b_over_a EMPTY cells
+- each "full session" id also (T2.2): consent_at (ISO time), age 27, sex
+  "female", education 5, sleep_h 7, fatigue 2, others_present 0, pointer_self
+  "mouse"; no status
+- each "no consent" id: a row with status "no_consent", last_block "consent"
+  and NO device_*, session_type or started_at columns filled, no consent_at
+- each "excluded by age" id: status "excluded_criteria", exclusion_reason
+  "age", last_block "criteria"; consent_at and the device columns filled,
+  but NO age, tbi or color_vision values
 - each "beacon only" id: one row with tmt_a_status "complete" and the other tmt_a_* columns""")
 
 

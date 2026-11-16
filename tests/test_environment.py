@@ -97,8 +97,9 @@ class DeviceCheckTest(EnvironmentTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors = self.open(browser, "?mode=pilot")
-                self.placeholder(page, "Згода")
-                self.assertEqual(page.locator(".screen").count(), 0)
+                page.locator(".consent").wait_for()  # the consent, not a device message
+                self.assertEqual(page.locator(".screen").count(), 1)
+                self.assertNotIn("лише на ноутбуці", page.locator(".screen").inner_text())
                 self.assertEqual(errors, [])
 
 

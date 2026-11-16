@@ -3,6 +3,16 @@ import { deviceCheck, deviceCheckMessage } from './tasks/device_check.js';
 import { fullscreenScreens, fullscreenMessage } from './tasks/fullscreen.js';
 import { calibrationScreens, calibrationMessage } from './tasks/calibration.js';
 import { tmtScreens, tmtMessage } from './tasks/tmt.js';
+import {
+  consentScreens,
+  consentMessage,
+  criteriaScreens,
+  criteriaMessage,
+  demographicsScreens,
+  demographicsMessage,
+  conditionsScreens,
+  conditionsMessage,
+} from './tasks/questionnaires.js';
 
 // Blocks of a first session in their fixed order (decision 33;
 // docs/11-technical-plan.md, section 2). build(block, ctx) returns the block's
@@ -30,10 +40,10 @@ const TMT = { ...TASK, build: tmtScreens, message: tmtMessage };
 
 export const BLOCKS = [
   block('device_check', 'Перевірка пристрою', 'Т0.5', { build: deviceCheck, message: deviceCheckMessage }),
-  block('consent', 'Згода', 'Т2.2'),
-  block('criteria', 'Критерії включення й виключення', 'Т2.2'),
-  block('demographics', 'Біографічна анкета', 'Т2.2'),
-  block('conditions', 'Анкета умов', 'Т2.2'),
+  block('consent', 'Згода', 'Т2.2', { build: consentScreens, message: consentMessage }),
+  block('criteria', 'Критерії включення й виключення', 'Т2.2', { build: criteriaScreens, message: criteriaMessage }),
+  block('demographics', 'Біографічна анкета', 'Т2.2', { build: demographicsScreens, message: demographicsMessage }),
+  block('conditions', 'Анкета умов', 'Т2.2', { build: conditionsScreens, message: conditionsMessage }),
   block('calibration', 'Калібрування екрана', 'Т0.6', { build: calibrationScreens, message: calibrationMessage }),
   block('fullscreen', 'Повноекранний режим', 'Т0.5', { build: fullscreenScreens, message: fullscreenMessage }),
   block('tmt_a', 'TMT, частина A', 'Т1.2–Т1.4', TMT),

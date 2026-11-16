@@ -483,7 +483,7 @@ class ZoomBlockTest(AppTestCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors = self.open(browser, "?mode=dev&only=consent")
-                page.locator(".placeholder").wait_for()
+                page.locator(".consent").wait_for()
                 self.assertFalse(page.evaluate(KEY, {"key": "=", "code": "Equal", "ctrlKey": True}))
                 self.assertFalse(page.evaluate(WHEEL, {"ctrlKey": True}))
                 self.assertFalse(page.evaluate(GESTURE, "gesturestart"))

@@ -3,7 +3,7 @@
 // new version number (CLAUDE.md). Decision numbers refer to
 // docs/05-history-and-decisions.md in the private research repo.
 
-export const APP_VERSION = '0.8.0';
+export const APP_VERSION = '0.9.0';
 
 // Values allowed in the ?mode= URL parameter; no parameter means 'main'.
 // pilot and dev write to the pilot copies of the spreadsheets (decision 53).
@@ -31,6 +31,11 @@ export const PARAMS = {
     circleMm: 11,
     letterMm: 4.5, // height of capital letters and digits
     font: 'montserrat-semibold', // bundled in src/fonts/ (decision 131)
+  },
+  // Criteria of taking part (decisions 11, 86): ages inclusive.
+  criteria: {
+    ageMin: 18,
+    ageMax: 45,
   },
   coding: {
     durationMs: 90_000, // protocol
