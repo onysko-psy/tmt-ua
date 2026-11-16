@@ -170,6 +170,9 @@ class AppTestCase(unittest.TestCase):
             if label == "Кодування символів":
                 self.pass_coding(page)
                 continue
+            if label == "Stroop":
+                self.pass_stroop(page)
+                continue
             page.locator(".placeholder", has_text=label).wait_for()
             page.get_by_role("button", name="Далі").click()
 
@@ -371,6 +374,103 @@ class AppTestCase(unittest.TestCase):
         self.bot_coding(page, answers)
         page.locator(".coding-run").wait_for(state="detached")
 
+    # ---- Stroop (T3.2) ----
+
+    def start_stroop_training(self, page):
+        """From the instruction to the first dot of the training."""
+        page.get_by_role("button", name="Почати тренування").click()
+        page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+
+    def stroop_fast(self, page, iti=0, feedback=0):
+        """Shortens the pauses of the Stroop task through the live parameters
+        (window.tmtuaParams), so that whole sessions pass quickly."""
+        page.evaluate("([iti, feedback]) => Object.assign(window.tmtuaParams.stroop, { itiMs: iti, feedbackMs: feedback })",
+                      [iti, feedback])
+
+    def stroop_click(self, page, selector):
+        """A real mouse click in the middle of an element of the Stroop screen."""
+        box = page.locator(selector).first.bounding_box()
+        page.mouse.click(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+
+    def stroop_dot(self, page):
+        """Waits until the dot is drawn and clicks it; waits until the word is drawn;
+        returns (word, ink) of the trial."""
+        page.locator(".stroop-run[data-phase='dot'][data-dot-shown='1']").wait_for()
+        self.stroop_click(page, ".stroop-dot-visible")
+        word = page.locator(".stroop-word[data-shown='1']")
+        word.wait_for()
+        return word.get_attribute("data-word"), word.get_attribute("data-ink")
+
+    def stroop_plate(self, page, color):
+        self.stroop_click(page, f".stroop-plate[data-color='{color}']")
+
+    STROOP_BOT = """async ({ plan }) => {
+        // Runs trials with synthetic pointer presses until the run is over (or `limit`
+        // trials are done). plan: { delay: {congruent, incongruent} ms from the word drawn to
+        // the answer, wrong: [trial indices answered with a wrong plate], timeout: [indices
+        // not answered], misses: {index: presses beside the plates}, repeats: [indices that
+        // press the dot again], limit }.
+        const until = (fn, ms = 20000) => new Promise((resolve, reject) => {
+            const start = performance.now();
+            const tick = () => {
+                const value = fn();
+                if (value) resolve(value);
+                else if (performance.now() - start > ms) reject(new Error('the bot waited too long'));
+                else setTimeout(tick, 3);
+            };
+            tick();
+        });
+        const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+        const stage = () => document.querySelector('.stroop-run');
+        const press = (el) => el.dispatchEvent(new PointerEvent('pointerdown',
+            { bubbles: true, button: 0, isPrimary: true, pointerType: 'mouse' }));
+        const order = ['red', 'green', 'blue', 'yellow'];
+        const limit = plan.limit ?? 1000;
+        for (let done = 0; done < limit; done++) {
+            await until(() => !stage() || (stage().dataset.phase === 'dot' && stage().dataset.dotShown === '1'));
+            if (!stage()) break;
+            const n = Number(stage().dataset.trial);
+            press(stage().querySelector('.stroop-dot-hit'));
+            const word = await until(() => stage().querySelector('.stroop-word[data-shown="1"]'));
+            const ink = word.dataset.ink;
+            const same = word.dataset.word === ink;
+            for (let k = 0; k < ((plan.misses ?? {})[n] ?? 0); k++) press(stage());
+            if ((plan.repeats ?? []).includes(n)) press(stage().querySelector('.stroop-dot-hit'));
+            await sleep(((plan.delay ?? {})[same ? 'congruent' : 'incongruent']) ?? 5);
+            if ((plan.timeout ?? []).includes(n)) {
+                await until(() => !stage() || stage().dataset.phase !== 'word');
+            } else {
+                const target = (plan.wrong ?? []).includes(n) ? order[(order.indexOf(ink) + 1) % 4] : ink;
+                press(stage().querySelector(`.stroop-plate[data-color="${target}"]`));
+            }
+        }
+    }"""
+
+    def bot_stroop(self, page, **plan):
+        """Runs the bot in the run on the screen (see STROOP_BOT for the plan)."""
+        page.evaluate(self.STROOP_BOT, {"plan": plan})
+
+    def start_stroop(self, page, wrong_trials=(), repeat=False):
+        """From the instruction through the training (the trials in `wrong_trials` of its
+        first attempt are answered wrongly; with `repeat` a second attempt is passed
+        cleanly) to the first dot of the main part."""
+        self.start_stroop_training(page)
+        self.bot_stroop(page, wrong=list(wrong_trials))
+        if repeat:
+            page.get_by_role("button", name="Почати тренування").click()
+            page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+            self.bot_stroop(page)
+        page.get_by_role("button", name="Почати", exact=True).click()
+        page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+
+    def pass_stroop(self, page):
+        """Gets through the Stroop block: a clean training and the main part answered
+        rightly (the pauses are shortened)."""
+        self.stroop_fast(page)
+        self.start_stroop(page)
+        self.bot_stroop(page)
+        page.locator(".stroop-run").wait_for(state="detached")
+
     def session_blocks(self, page, retest=False):
         """(id, label, is a placeholder) of every block, in session order
         (of a retest if asked)."""
@@ -407,6 +507,8 @@ class AppTestCase(unittest.TestCase):
             self.pass_tmt(page, label)
         elif block_id == "coding":
             self.pass_coding(page)
+        elif block_id == "stroop":
+            self.pass_stroop(page)
         elif block_id in FORM_BLOCKS.values():
             self.pass_form(page, block_id)
         elif block_id != "device_check":  # an accepted device sees no screen

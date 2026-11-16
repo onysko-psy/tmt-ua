@@ -7,9 +7,11 @@ import { renderDevMenu, createDevBadge, renderDevEnd } from './dev.js';
 import { renderEnvCheck } from './dev-env.js';
 import { renderTmtOptions } from './dev-tmt.js';
 import { renderCodingSymbols } from './dev-coding.js';
+import { renderStroopLooks } from './dev-stroop.js';
 import { taskScale } from './scale.js';
 import { loadTmtStimuli } from './tmt/stimuli.js';
 import { loadCodingStimuli } from './coding/symbols.js';
+import { loadStroopStimuli } from './stroop/stimuli.js';
 import { newSessionId, newParticipantCode } from './data/ids.js';
 import { deviceInfo } from './data/device.js';
 import { createSender } from './data/sender.js';
@@ -73,6 +75,13 @@ async function start() {
         return showMessage(error.message);
       }
     }
+    if (session.devTool === 'stroop') {
+      try {
+        return renderStroopLooks(session, buildParams(session.overrides));
+      } catch (error) {
+        return showMessage(error.message);
+      }
+    }
     return showMessage(`Unknown dev tool: ${session.devTool}`);
   }
   if (isDev && session.devStart === null && session.devOnly === null) {
@@ -89,10 +98,15 @@ async function start() {
   }
 
   // The layouts and the font of the TMT circles, the figures and the sequence
-  // of the coding task: without them the session does not start.
+  // of the coding task, the colours and the sequences of the Stroop task:
+  // without them the session does not start.
   let stimuli;
   try {
-    stimuli = { tmt: await loadTmtStimuli(params.tmt), coding: await loadCodingStimuli() };
+    stimuli = {
+      tmt: await loadTmtStimuli(params.tmt),
+      coding: await loadCodingStimuli(),
+      stroop: await loadStroopStimuli(),
+    };
   } catch {
     return showMessage(texts.errors.loadFailed);
   }
@@ -120,6 +134,11 @@ async function start() {
       if (atEnd && !isDev && state.pending === 0) showMessage(endText());
     },
   });
+
+  // The live parameters, for automated checks, which shorten the pauses of
+  // the Stroop task to get through whole sessions quickly. Nothing in the app
+  // reads this handle; it changes nothing for a participant.
+  window.tmtuaParams = params;
 
   const monitor = createMonitor();
   const banner = createFullscreenBanner(

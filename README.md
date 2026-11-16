@@ -61,6 +61,11 @@ src/
     calibration.js    калібрування екрана карткою; контрольний квадрат 100 мм у dev
     fullscreen.js     вхід у повноекранний режим, перевірка, чи влазить ділянка завдань, і перевірка перед кожним завданням
     tmt.js            блоки TMT A і B: екрани, параметри прогону, що йде в таблицю й журнал
+  stroop/
+    screen.js         екран Stroop: точка, слово, плашки в міліметрах (SVG)
+    run.js            один прогін проб: точка, слово, плашки, ліміт 5 с, паузи, зворотний зв'язок у тренуванні
+    score.js          ефект Струпа й підрахунок по умовах (без браузера)
+    stimuli.js        завантаження кольорів і послідовностей
   data/
     sender.js         надсилання без втрат: черга в браузері, повтори, sendBeacon
     ids.js            випадкові коди сесії й учасника
@@ -70,6 +75,9 @@ stimuli/
   tmt-layout.json             розташування кружечків, яке використовує застосунок (версія в layout_version)
   tmt-layout-candidates.json  варіанти, з яких його обрано: по 4 для A, B і двох пробних
   tmt-layout-v1-*.png         картинки розташування: як бачить учасник і з правильним шляхом
+  stroop-colors.json          вигляд і кольори Stroop, який використовує застосунок (версія в stroop_colors_version)
+  stroop-sequence.json        фіксовані послідовності Stroop: основна частина й два списки тренування (версія в stroop_sequence_version)
+  stroop-candidates.json, stroop-variant-*.png   три варіанти вигляду, з яких обрано
 receiver/             приймач даних у Google Apps Script і інструкція з налаштування
 tests/                перевірки (Playwright; test_tmt_layouts.py — без браузера)
 tools/
@@ -77,6 +85,8 @@ tools/
   tmt_layouts.py      генератор розташувань TMT і перевірка правил
   build_fonts.py      збирає файл шрифту в src/fonts/ (потрібні fonttools і brotli)
   render_layouts.py   малює картинки розташування в stimuli/ (потрібен Playwright)
+  stroop_sequence.py  генератор послідовностей Stroop; `--check` перевіряє збережений файл
+  render_stroop.py    малює картинки варіантів вигляду Stroop (потрібен Playwright)
 ```
 
 Далі з'являться інструкції й пробні TMT, плагін кодування в `src/plugins/`, послідовності стимулів у `stimuli/` та їхні генератори в `tools/`.

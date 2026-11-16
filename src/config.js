@@ -3,7 +3,7 @@
 // new version number (CLAUDE.md). Decision numbers refer to
 // docs/05-history-and-decisions.md in the private research repo.
 
-export const APP_VERSION = '0.12.0';
+export const APP_VERSION = '0.13.0';
 
 // Values allowed in the ?mode= URL parameter; no parameter means 'main'.
 // pilot and dev write to the pilot copies of the spreadsheets (decision 53).
@@ -49,11 +49,13 @@ export const PARAMS = {
     frameMm: 28, // the frame round the current figure
   },
   stroop: {
+    // The look (colours, sizes in mm) is stimuli/stroop-colors.json (decision 151).
     practiceTrials: 12, // decision 92
     practiceMinCorrect: 9, // decision 92
     mainTrials: 96, // decision 84
     responseLimitMs: 5000, // decision 91
     itiMs: 500, // decision 93
+    feedbackMs: 1500, // training only (decision 153)
   },
   sart: {
     practiceTrials: 18, // decision 85

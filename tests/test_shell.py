@@ -55,12 +55,12 @@ class AppShellTest(AppTestCase):
     def test_dev_only_runs_one_block_and_dumps_data(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
-                page, errors = self.open(browser, "?mode=dev&only=stroop")
-                expect(page.locator(".placeholder")).to_contain_text("Stroop")
+                page, errors = self.open(browser, "?mode=dev&only=sart")
+                expect(page.locator(".placeholder")).to_contain_text("SART")
                 expect(page.locator(".dev-badge")).to_be_visible()
                 page.get_by_role("button", name="Далі").click()
                 data = json.loads(page.locator(".dev-end pre").text_content())
-                self.assertEqual([row["block"] for row in data], ["stroop"])
+                self.assertEqual([row["block"] for row in data], ["sart"])
                 self.assertEqual(data[0]["mode"], "dev")
                 self.assertEqual(data[0]["app_version"], self.module(page, "config.js")["APP_VERSION"])
                 self.assertEqual(errors, [])

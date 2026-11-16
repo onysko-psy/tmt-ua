@@ -1,0 +1,114 @@
+{
+ "note": "Candidate looks of the Stroop screen (T3.2, stage 1; decisions 88, 90). Not used by sessions: the chosen variant goes to stroop-colors.json. All lengths in mm, on the task area of 240 x 150 mm; the dot is at the centre of the area, the word is above it, the plates below it.",
+ "area": {
+  "w": 240,
+  "h": 150
+ },
+ "words": [
+  {
+   "id": "red",
+   "word": "ЧЕРВОНИЙ"
+  },
+  {
+   "id": "green",
+   "word": "ЗЕЛЕНИЙ"
+  },
+  {
+   "id": "blue",
+   "word": "СИНІЙ"
+  },
+  {
+   "id": "yellow",
+   "word": "ЖОВТИЙ"
+  }
+ ],
+ "order": [
+  "red",
+  "green",
+  "blue",
+  "yellow"
+ ],
+ "variants": [
+  {
+   "id": "1",
+   "name": "Стандартний: ряд плашок, середній шрифт",
+   "bg": "#2B2B2B",
+   "colors": {
+    "red": "#FF4136",
+    "green": "#2ECC40",
+    "blue": "#3D8BFF",
+    "yellow": "#FFDC00"
+   },
+   "word_cap_mm": 12,
+   "word_above_dot_mm": 28,
+   "dot_mm": 6,
+   "dot_hit_mm": 14,
+   "dot_color": "#E6E6E6",
+   "hint_below_dot_mm": 11,
+   "plates": {
+    "layout": "row",
+    "w_mm": 36,
+    "h_mm": 22,
+    "gap_mm": 8,
+    "top_below_dot_mm": 34,
+    "corner_mm": 3
+   }
+  },
+  {
+   "id": "2",
+   "name": "Крупний: ряд плашок, більший шрифт і світліші кольори",
+   "bg": "#333333",
+   "colors": {
+    "red": "#FF5252",
+    "green": "#4CD964",
+    "blue": "#5C9DFF",
+    "yellow": "#FFE14D"
+   },
+   "word_cap_mm": 16,
+   "word_above_dot_mm": 34,
+   "dot_mm": 6,
+   "dot_hit_mm": 14,
+   "dot_color": "#E6E6E6",
+   "hint_below_dot_mm": 11,
+   "plates": {
+    "layout": "row",
+    "w_mm": 40,
+    "h_mm": 26,
+    "gap_mm": 10,
+    "top_below_dot_mm": 36,
+    "corner_mm": 3
+   }
+  },
+  {
+   "id": "3",
+   "name": "Дуга: плашки на однаковій відстані від точки, темніший фон",
+   "bg": "#1F1F1F",
+   "colors": {
+    "red": "#F2403A",
+    "green": "#33C24D",
+    "blue": "#4A90FF",
+    "yellow": "#F5D400"
+   },
+   "word_cap_mm": 14,
+   "word_above_dot_mm": 30,
+   "dot_mm": 6,
+   "dot_hit_mm": 14,
+   "dot_color": "#E6E6E6",
+   "hint_below_dot_mm": 11,
+   "plates": {
+    "layout": "arc",
+    "w_mm": 34,
+    "h_mm": 20,
+    "radius_mm": 56,
+    "angles_deg": [
+     -64,
+     -24,
+     24,
+     64
+    ],
+    "corner_mm": 3
+   }
+  }
+ ],
+ "chosen": "1"
+}

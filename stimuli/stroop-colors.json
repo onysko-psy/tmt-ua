@@ -1,0 +1,17 @@
+{
+ "colors_version": 1,
+ "note": "The look of the Stroop screen chosen by the author (decision 151): variant 1 of stroop-candidates.json. All lengths in mm on the task area; the dot is at the centre of the area, the word above it, the plates below it. Changing this file after data collection starts needs the author's decision and a new version.",
+ "variant": "1",
+ "area": {"w": 240, "h": 150},
+ "words": [{"id": "red", "word": "ЧЕРВОНИЙ"}, {"id": "green", "word": "ЗЕЛЕНИЙ"}, {"id": "blue", "word": "СИНІЙ"}, {"id": "yellow", "word": "ЖОВТИЙ"}],
+ "order": ["red", "green", "blue", "yellow"],
+ "bg": "#2B2B2B",
+ "colors": {"red": "#FF4136", "green": "#2ECC40", "blue": "#3D8BFF", "yellow": "#FFDC00"},
+ "word_cap_mm": 12,
+ "word_above_dot_mm": 28,
+ "dot_mm": 6,
+ "dot_hit_mm": 14,
+ "dot_color": "#E6E6E6",
+ "hint_below_dot_mm": 11,
+ "plates": {"layout": "row", "w_mm": 36, "h_mm": 22, "gap_mm": 8, "top_below_dot_mm": 34, "corner_mm": 3}
+}

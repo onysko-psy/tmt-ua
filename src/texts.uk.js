@@ -283,6 +283,35 @@ export const texts = {
       '<p>Тренування завершено.</p>' +
       '<p>Тепер основне завдання. Ключ той самий. Працюйте якомога швидше і без помилок. Підказок цього разу не буде: після кожної відповіді одразу з’явиться наступний символ.</p>' +
       '<p>Завдання зупиниться само за півтори хвилини.</p>',
+    // The last line of the coding task, shown as the first line of the Stroop
+    // instruction (no screen of its own; decision 154).
+    done: 'Завдання із символами завершено.',
+  },
+  stroop: {
+    practiceButton: 'Почати тренування',
+    mainButton: 'Почати',
+    // The example in the instruction shows what the participant will see: the
+    // word СИНІЙ printed in red, so redHex is the red of the plates. The line
+    // before it, texts.coding.done, is put in front by the block (decision 154).
+    intro: (redHex) =>
+      '<p><strong>Завдання з кольорами</strong></p>' +
+      '<p>На екрані з’являтимуться назви кольорів, надруковані різними кольорами. Відповідайте, яким кольором надруковано слово, а що слово означає — не зважайте. Наприклад, якщо слово ' +
+      `<span class="stroop-example" style="color:${redHex}">СИНІЙ</span>` +
+      ' надруковане червоним, натисніть червону плашку.</p>' +
+      '<p>Перед кожним словом натискайте точку в центрі: слово з’явиться над нею. Відповідайте якомога швидше і без помилок.</p>' +
+      '<p>Спершу потренуємося.</p>',
+    dotHint: 'Натисніть точку',
+    feedbackRight: 'Правильно',
+    // {color}: the colour the word was printed in, in the instrumental case.
+    feedbackWrong: 'Неправильно: слово надруковане {color} кольором.',
+    feedbackTimeout: 'Час вийшов. Відповідайте трохи швидше.',
+    colorInstrumental: { red: 'червоним', green: 'зеленим', blue: 'синім', yellow: 'жовтим' },
+    trainingRepeat:
+      '<p>Потренуймося ще раз. Натискайте плашку того кольору, яким надруковано слово, а не того, що слово означає.</p>',
+    main:
+      '<p>Тренування завершено.</p>' +
+      '<p>Тепер основне завдання. Підказок цього разу не буде. Як і раніше, перед кожним словом натисніть точку, а потім — плашку того кольору, яким надруковано слово.</p>' +
+      '<p>Відповідайте якомога швидше і без помилок. Це займе близько 4 хвилин.</p>',
   },
   screen: {
     windowTooSmall:

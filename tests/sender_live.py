@@ -1,4 +1,4 @@
-"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2, T2.3, T2.4, T3.1).
+"""Runs dev sessions against the REAL receiver (tasks T0.3, T0.5, T0.6, T1.2, T1.4, T2.2, T2.3, T2.4, T3.1, T3.2).
 
 Not part of the automatic test run: it writes rows into the PILOT storage
 (mode=dev). Prints the session ids; then compare the pilot spreadsheet with
@@ -17,12 +17,36 @@ from playwright.sync_api import sync_playwright
 from harness import APP_DIR, RECEIVER_GLOB, TMT_POINTS, AppTestCase, QuietHandler
 
 
+# Shortens the pauses and the answer limit of the Stroop task, so that a live session is quick.
+STROOP_FAST = "&set.stroop.itiMs=50&set.stroop.feedbackMs=100&set.stroop.responseLimitMs=800"
+
+
 def click_through(page, count):
     for _ in range(count):
         page.locator(".placeholder").wait_for()
         text = page.locator(".placeholder").text_content()
         page.get_by_role("button", name="Далі").click()
         page.wait_for_function("t => document.querySelector('.placeholder')?.textContent !== t", arg=text)
+
+
+# The Stroop block (T3.2): the instruction, the training (a repeat if fewer than 9
+# of 12 are correct), the main part of 96 trials answered by the bot from the test
+# harness (synthetic presses; the pauses are shortened in the link).
+def pass_stroop(page, training_wrong=(), repeat=False, wrong=(), timeout=(), delay=None):
+    def bot(plan):
+        page.evaluate(AppTestCase.STROOP_BOT, {"plan": plan})
+
+    page.get_by_role("button", name="Почати тренування").click()
+    page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+    bot({"wrong": list(training_wrong)})
+    if repeat:
+        page.get_by_role("button", name="Почати тренування").click()
+        page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+        bot({})
+    page.get_by_role("button", name="Почати", exact=True).click()
+    page.locator(".stroop-run[data-dot-shown='1']").wait_for()
+    bot({"wrong": list(wrong), "timeout": list(timeout), "delay": delay or {"congruent": 20, "incongruent": 70}})
+    page.locator(".stroop-run").wait_for(state="detached")
 
 
 def pass_questionnaires(page, age=27):
@@ -176,7 +200,7 @@ def main():
             # back. device_check shows no screen on a desktop and sends nothing.
             context = browser.new_context()
             page = context.new_page()
-            open_app(page, base + "?mode=dev&start=device_check&set.coding.durationMs=4000")
+            open_app(page, base + "?mode=dev&start=device_check&set.coding.durationMs=4000" + STROOP_FAST)
             session_id = page.evaluate("window.tmtua.ids.session_id")
             pass_questionnaires(page)  # consent .. conditions
             calibrate(page)
@@ -191,7 +215,10 @@ def main():
             # coding: 3 wrong digits in the training (so a repeat), then 30 answers
             # of the main part, 3 of them wrong (positions 3, 10, 20), and 3 extra keys.
             pass_coding(page, training_wrong=3, answers=30, wrong=[3, 10, 20], extra_keys=True)
-            click_through(page, 2)  # stroop, sart
+            # stroop: 4 wrong in the training (8 of 12 correct: a repeat), then the main part:
+            # wrong at trials 3, 10, 20, 50, no answer at 7 and 60 (limit 0.8 s here).
+            pass_stroop(page, training_wrong=[1, 2, 3, 4], repeat=True, wrong=[3, 10, 20, 50], timeout=[7, 60])
+            click_through(page, 1)  # sart
             pass_closing(page)  # pss10 .. retest_invite; thanks has no screen
             page.locator(".dev-end").wait_for()
             queued = page.evaluate("window.tmtua.sender.pending()")
@@ -205,7 +232,7 @@ def main():
             # ?r=CODE, no biography, no invitation; the end marks the contacts.
             context = browser.new_context()
             page = context.new_page()
-            open_app(page, base + f"?mode=dev&r={first_code}&start=device_check&set.coding.durationMs=4000")
+            open_app(page, base + f"?mode=dev&r={first_code}&start=device_check&set.coding.durationMs=4000" + STROOP_FAST)
             session_id = page.evaluate("window.tmtua.ids.session_id")
             page.get_by_role("button", name="Я погоджуюся").click()
             pass_conditions(page)
@@ -216,7 +243,8 @@ def main():
             pass_tmt(page)
             pass_tmt(page)
             pass_coding(page, training_wrong=0, answers=30)  # the same 30 figures, no errors
-            click_through(page, 2)
+            pass_stroop(page)  # a clean training and 96 right answers: the same sequence
+            click_through(page, 1)
             pass_closing(page, email=None)
             page.locator(".dev-end").wait_for()
             wait_delivered(page)
@@ -306,7 +334,7 @@ def main():
     print("\n".join(report))
     print("""
 Expected in the pilot sessions sheet:
-- each "full session" id: one row, 2 *_placeholder columns (stroop, sart) equal to 1 (coding is real since T3.1),
+- each "full session" id: one row, 1 *_placeholder column (sart) equal to 1 (coding is real since T3.1, stroop since T3.2),
   px_per_mm 4.4393, calibration_card_px 380, calibration_attempts 1,
   calibration_suspect 0, screen_w_mm 288.3, screen_h_mm 162.2,
   fullscreen_status "entered", fullscreen_view_w_mm / _h_mm filled,
@@ -334,6 +362,18 @@ Expected in the pilot sessions sheet:
   coding.json in the session's Drive folder with practice.attempts (2), main.answers (30,
   their "symbol" equal to the first 30 numbers of stimuli/coding-sequence.json), main.extra_keys
   (3 "not_digit"), during_test, env.
+- each "full session" id (T3.2): stroop_practice_attempts_n 2, stroop_practice_correct_1 8,
+  stroop_practice_correct_2 12, stroop_colors_version "1", stroop_sequence_version "1",
+  stroop_correct_n 90, stroop_errors_n 4, stroop_timeouts_n 2 (trials 3, 10, 20, 50 wrong; 7, 60 not answered),
+  per condition (computed from stimuli/stroop-sequence.json): stroop_congruent_* and stroop_incongruent_*
+  correct_n, errors_n, timeouts_n, rt_ms (congruent about 20-60, incongruent about 70-110 ms),
+  stroop_effect_ms = incongruent rt minus congruent rt (about 50), stroop_miss_n 0, stroop_dot_repeat_n 0,
+  stroop_time_ms filled; ten stroop_* environment columns; stroop.json in the session's Drive folder with
+  colors, sequence, sizes_mm, limits, practice.attempts (2, 12 trials each) and main.trials (96,
+  "word"/"ink" equal to stimuli/stroop-sequence.json "main"), during_test, env.
+- each "RETEST" id of a code (T3.2): stroop_practice_attempts_n 1, stroop_practice_correct_1 12,
+  stroop_practice_correct_2 EMPTY, stroop_correct_n 96, stroop_errors_n 0, stroop_timeouts_n 0, and the same
+  96 word/ink pairs in stroop.json as in the first session.
 - each "RETEST" id of a code (T3.1): coding_practice_attempts_n 1, coding_practice_errors_1 0,
   coding_practice_errors_2 EMPTY, coding_answers_n 30, coding_errors_n 0, coding_correct_n 30,
   coding_extra_keys_n 0, and the same 30 "symbol" values in coding.json as in the first session.
@@ -361,7 +401,7 @@ Expected in the pilot sessions sheet:
   equal to the code printed in the line, session_type "retest", started_at
   and device_* filled, consent_at (the retest's own), sleep_h 7, fatigue 2,
   others_present 0, pointer_self "mouse", tmt_a_* and tmt_b_* as in a full
-  session (layout_version 1), 2 *_placeholder columns, pss_total 20,
+  session (layout_version 1), 1 *_placeholder column (sart), pss_total 20,
   post_* filled, status "complete", finished_at, last_block "thanks"; NO age,
   sex, education, email_left, exclusion_reason. The first session's row with
   the same participant_code is unchanged (still session_type "first", email_left 1).

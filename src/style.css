@@ -570,3 +570,113 @@ body {
   color: #b00020;
   font-weight: 600;
 }
+
+/* Stroop looks page (?mode=dev&tool=stroop): the candidate screens in real
+   size, and the screen of the task itself (stroop/screen.js). */
+
+.dev-stroop {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px 40px;
+  background: #e9ecee;
+  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+.dev-stroop h1 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.dev-stroop h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.stroop-variant {
+  margin: 14px 0;
+  padding: 8px 10px 12px;
+  background: #fff;
+  border: 1px solid #b8bfc4;
+}
+
+.stroop-facts {
+  margin: 2px 0 8px;
+  color: #333;
+}
+
+.stroop-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-bottom: 8px;
+}
+
+.stroop-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #333;
+}
+
+.stroop-swatch i {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid #777;
+}
+
+.stroop-trial {
+  display: inline-block;
+  padding: 0;
+  line-height: 0;
+}
+
+.stroop-label {
+  margin: 10px 0 3px;
+  color: #555;
+}
+
+.stroop-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 36px;
+  padding: 16px;
+  line-height: 1.2;
+}
+
+.stroop-area {
+  display: block;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.stroop-hint {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* A run of the Stroop task (stroop/run.js): the dark screen with the dot, the
+   word and the plates, in the middle of the page. */
+
+.stroop-run {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  overflow: auto;
+  align-items: safe center;
+  justify-content: safe center;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.stroop-screen {
+  display: flex;
+  flex: none;
+  line-height: 0;
+}
+
+.stroop-run .stroop-area {
+  touch-action: none;
+}
