@@ -4,7 +4,7 @@ Run from the app/ folder in an environment with Playwright installed
 (in the research repo: ../.venv/bin/python -m unittest discover -s tests -v).
 Needs internet access: jsPsych is loaded from the CDN. To check the published
 site instead of the local files, set TMTUA_BASE_URL, e.g.
-TMTUA_BASE_URL=https://serv3latt.github.io/tmt-ua/
+TMTUA_BASE_URL=https://onysko-psy.github.io/tmt-ua/
 """
 
 import json
