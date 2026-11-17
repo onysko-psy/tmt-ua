@@ -145,7 +145,7 @@ class InviteTest(ClosingCase):
                 context, receiver, page, errors = self.open_block(browser, "retest_invite")
                 page.locator("#field-email").wait_for()
                 text = page.locator(".form").inner_text()
-                self.assertIn("Повторне проходження – за бажанням", text)
+                self.assertIn("Повторне проходження, за бажанням", text)
                 self.assertIn("видалимо після завершення дослідження", text)
                 self.assertEqual(page.get_by_role("button").all_text_contents(), [SEND, SKIP])
                 self.pass_invite(page, ADDRESS)
@@ -203,7 +203,7 @@ class InviteTest(ClosingCase):
                 page, _ = self.open(browser, "?mode=dev")
                 letter = page.evaluate(LETTER, {"date": "2026-12-03T10:00:00", "link": "https://x.test/?r=abc"})
                 self.assertIn("3 грудня 2026 року Ви пройшли онлайн-дослідження «Психометрична оцінка україномовної "
-                              "онлайн-версії Trail Making Test» і погодилися пройти його ще раз. Дякуємо!", letter)
+                              "онлайн-версії Trail Making Test» і погодилися пройти його ще раз. Дякую!", letter)
                 self.assertIn("Ваше персональне посилання: https://x.test/?r=abc\n", letter)
                 self.assertIn("Будь ласка, пройдіть його протягом двох тижнів після цього листа.", letter)
 
@@ -225,7 +225,7 @@ class ThanksTest(ClosingCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver, page, errors = self.finish(browser, ADDRESS)
-                expect(page.locator(".message")).to_contain_text("Дякуємо за участь!", timeout=15000)
+                expect(page.locator(".message")).to_contain_text("Дякую за участь!", timeout=15000)
                 text = page.locator(".message").inner_text()
                 self.assertIn("Ви пройшли всі завдання, Ваші відповіді збережено.", text)
                 self.assertIn("Індивідуальних результатів ми не показуємо", text)
@@ -238,7 +238,7 @@ class ThanksTest(ClosingCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver, page, errors = self.finish(browser, None)
-                expect(page.locator(".message")).to_contain_text("Дякуємо за участь!", timeout=15000)
+                expect(page.locator(".message")).to_contain_text("Дякую за участь!", timeout=15000)
                 text = page.locator(".message").inner_text()
                 self.assertNotIn("запрошення надійде", text)
                 self.assertIn("onysko.nz@ucu.edu.ua", text)
@@ -248,7 +248,7 @@ class ThanksTest(ClosingCase):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver, page, errors = self.finish(browser, ADDRESS)
-                expect(page.locator(".message")).to_contain_text("Дякуємо за участь!", timeout=15000)
+                expect(page.locator(".message")).to_contain_text("Дякую за участь!", timeout=15000)
                 self.assertEqual(receiver.blocks()[-4:], ["pss10", "post", "retest_invite", "thanks"])
                 thanks = receiver.accepted[-1]["summary"]
                 self.assertEqual(thanks["status"], "complete")

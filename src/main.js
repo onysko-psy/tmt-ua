@@ -35,7 +35,7 @@ import {
 // A text, or { html } for the end of a session that went through (own texts).
 function showMessage(content) {
   const message = document.createElement(content.html ? 'div' : 'p');
-  message.className = 'message';
+  message.className = 'message page';
   if (content.html) message.innerHTML = content.html;
   else message.textContent = content;
   document.body.replaceChildren(message);

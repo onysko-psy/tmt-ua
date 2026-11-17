@@ -42,7 +42,7 @@ export class FormPlugin {
 
   trial(displayElement, trial) {
     const root = document.createElement('div');
-    root.className = 'screen form';
+    root.className = 'screen page form';
     root.innerHTML = trial.html;
 
     const form = document.createElement('form');

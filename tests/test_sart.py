@@ -529,7 +529,7 @@ class TrainingTest(SartTestCase):
                 self.start_sart_training(page)
                 self.bot_sart(page, omit=[0], press3=[3])
                 page.get_by_role("button", name="Почати", exact=True).wait_for()
-                self.assertEqual(page.evaluate("window.__hints"), ["Ви не натиснули пробіл.", "Це була 3 – на неї не натискайте."])
+                self.assertEqual(page.evaluate("window.__hints"), ["Ви не натиснули пробіл.", "Це була 3, на неї не натискайте."])
                 phases = page.evaluate("window.__phases")
                 names = [(p[0], p[2]) for p in phases]
                 self.assertEqual(names[:6], [("prepare", None), ("digit", "0"), ("mask", "0"), ("feedback", "0"), ("digit", "1"), ("mask", "1")])
@@ -789,7 +789,7 @@ class SessionTest(SartTestCase):
             with self.subTest(browser=browser.browser_type.name):
                 page, errors, _, _ = self.open_sart(browser)
                 text = page.locator(".screen").inner_text()
-                self.assertTrue(text.startswith("Завдання з кольорами завершено."), text)
+                self.assertTrue(text.startswith("Тест Струпа завершено."), text)
                 self.assertIn("Завдання з цифрами", text)
                 self.assertEqual(page.locator(".screen strong").all_inner_texts(), ["Завдання з цифрами", "крім цифри 3"])
                 self.assertEqual(errors, [])

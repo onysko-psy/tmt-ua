@@ -103,7 +103,7 @@ export async function renderSartLooks(session, params = PARAMS) {
     makeScreen('Маска', (s) => s.setMask());
     makeScreen('Підказка в тренуванні після помилки (на 3)', (s) => {
       s.setMask();
-      s.setHint('Це була 3 — на неї не натискайте.');
+      s.setHint('Це була 3, на неї не натискайте.');
     });
     makeScreen('Підказка в тренуванні (пропуск)', (s) => {
       s.setMask();

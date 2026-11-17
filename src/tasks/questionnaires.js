@@ -37,7 +37,7 @@ export function consentScreens(block, ctx) {
   return [
     {
       type: HtmlButtonResponse,
-      stimulus: `<div class="screen consent"><h2>${texts.consent.title}</h2>${texts.consent.body}</div>`,
+      stimulus: `<div class="screen page consent"><h2>${texts.consent.title}</h2>${texts.consent.body}</div>`,
       choices: [texts.consent.agree, texts.consent.decline],
       on_finish: (data) => {
         consent.agreed = data.response === 0;
@@ -58,7 +58,7 @@ export function consentRetestScreens(block, ctx) {
     {
       type: HtmlButtonResponse,
       stimulus:
-        `<div class="screen consent"><h2>${t.title}</h2>${t.body}` +
+        `<div class="screen page consent"><h2>${t.title}</h2>${t.body}` +
         `<details class="consent-full"><summary>${t.fullText}</summary>${texts.consent.body}</details></div>`,
       choices: [texts.consent.agree, texts.consent.decline],
       on_finish: (data) => {
@@ -158,7 +158,7 @@ export function conditionsScreens(block, ctx) {
   return [
     {
       type: HtmlButtonResponse,
-      stimulus: `<div class="screen">${texts.prepare}</div>`,
+      stimulus: `<div class="screen page">${texts.prepare}</div>`,
       choices: [texts.common.next],
     },
     form(

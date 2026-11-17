@@ -26,7 +26,7 @@ class AppShellTest(AppTestCase):
                 for block in blocks:
                     self.pass_block(page, *block)
                 texts = self.module(page, "texts.uk.js")["texts"]
-                expect(page.locator(".message")).to_contain_text("Дякуємо за участь!")
+                expect(page.locator(".message")).to_contain_text("Дякую за участь!")
                 self.assertEqual(page.locator(".dev-badge").count(), 0)
                 # While COLLECTION_OPEN is false (decision 161), main mode sends nothing,
                 # so the main spreadsheet stays empty until data collection.
@@ -57,7 +57,7 @@ class AppShellTest(AppTestCase):
                 self.assertTrue(self.module(page, "config.js")["COLLECTION_OPEN"])
                 for block in self.session_blocks(page):
                     self.pass_block(page, *block)
-                expect(page.locator(".message")).to_contain_text("Дякуємо за участь!", timeout=20000)
+                expect(page.locator(".message")).to_contain_text("Дякую за участь!", timeout=20000)
                 # (an accepted device sends nothing: the device check has no message)
                 self.assertEqual(receiver.blocks(), [b[0] for b in self.session_blocks(page) if b[0] != "device_check"])
                 self.assertEqual({m["mode"] for m in receiver.accepted}, {"main"})

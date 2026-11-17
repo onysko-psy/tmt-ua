@@ -12,7 +12,7 @@ export function deviceCheck() {
       timeline: [
         {
           type: HtmlButtonResponse,
-          stimulus: `<div class="screen">${texts.device.rejected}</div>`,
+          stimulus: `<div class="screen page">${texts.device.rejected}</div>`,
           choices: [],
         },
       ],

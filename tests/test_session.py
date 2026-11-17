@@ -40,7 +40,7 @@ class SessionCase(AppTestCase):
             else:
                 self.pass_block(page, block_id, label, placeholder)
         # the thank-you text appears once everything is delivered (pilot mode has no dev handle)
-        page.locator(".message", has_text="Дякуємо").wait_for(timeout=20000)
+        page.locator(".message", has_text="Дякую").wait_for(timeout=20000)
 
 
 class WholeSessionTest(SessionCase):
@@ -144,7 +144,7 @@ class SeveralSessionsTest(SessionCase):
                 else:
                     self.pass_block(page, block_id, label, placeholder)
         for _, _, page, _ in sessions:
-            page.locator(".message", has_text="Дякуємо").wait_for(timeout=20000)
+            page.locator(".message", has_text="Дякую").wait_for(timeout=20000)
         ids = set()
         codes = set()
         for context, receiver, page, errors in sessions:

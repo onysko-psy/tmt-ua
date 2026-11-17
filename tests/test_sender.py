@@ -159,7 +159,7 @@ class SenderTest(AppTestCase):
                 expect(page.locator(".message")).to_have_text(texts["data"]["offline"])
 
                 self.set_offline(context, receiver, False)
-                expect(page.locator(".message")).to_contain_text("Дякуємо за участь!", timeout=15000)
+                expect(page.locator(".message")).to_contain_text("Дякую за участь!", timeout=15000)
                 # every block but device_check, which sends nothing (decision 97)
                 self.assertEqual(receiver.blocks(), [b[0] for b in blocks[1:]])
                 self.assertEqual({m["mode"] for m in receiver.accepted}, {"pilot"})

@@ -797,3 +797,220 @@ body {
   width: min(100%, 720px);
   font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
 }
+
+/* Pages that are not tests (T4.2 design, decision 175): the consent, the
+   questionnaires, PSS-10, the screens before and after the tasks. A warm
+   band with the faculty name on top, calmer headings, green buttons. The
+   consent and PSS-10, which are read and scroll anyway, get more room between
+   paragraphs and questions; the short questionnaires stay compact, because
+   they must fit a laptop window without scrolling (tests: FitTest). The
+   colours come from the website of the faculty (fhs.ucu.edu.ua): taupe
+   #a19283 and green #26b778 (a darker green for buttons, so the white text on
+   them reads). Nothing here touches the task screens: they have no `page`
+   class, and the selectors below need one on the page. */
+
+@font-face {
+  font-family: 'FHS Heading';
+  src: url('fonts/montserrat-semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+
+:root {
+  --page-ink: #2f2a26;
+  --page-heading: #5a4e43;
+  --page-band: #a19283;
+  --page-green: #1b8f5a;
+  --page-green-dark: #14724a;
+  --page-line: #e8e2db;
+  --page-heading-font: 'FHS Heading', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+}
+
+body:has(.page) {
+  color: var(--page-ink);
+}
+
+body:has(.page)::before {
+  content: 'Факультет наук про здоров’я УКУ';
+  display: block;
+  padding: 0.4rem 2rem;
+  background: var(--page-band);
+  color: #fff;
+  font: 600 0.7rem/1 var(--page-heading-font);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body:has(.page) #jspsych-target {
+  height: auto;
+}
+
+.page strong {
+  color: var(--page-heading);
+}
+
+.page h2,
+.page h3 {
+  font-family: var(--page-heading-font);
+  font-weight: 600;
+  color: var(--page-heading);
+  line-height: 1.35;
+}
+
+.message.page {
+  margin-top: 0;
+  padding-top: 4rem;
+}
+
+.page input[type='radio'] {
+  accent-color: var(--page-green);
+}
+
+.page input:focus-visible,
+.page textarea:focus-visible,
+.page summary:focus-visible {
+  outline: 2px solid var(--page-green);
+  outline-offset: 2px;
+}
+
+.page .field-number,
+.page .field-email,
+.page .field-text {
+  border: 1px solid #c9c0b6;
+  border-radius: 6px;
+}
+
+/* The consent: a long text, so air between its parts. */
+
+.consent {
+  padding-top: 1.5rem;
+  line-height: 1.7;
+}
+
+.consent h2 {
+  margin: 0.5rem 0 2rem;
+  font-size: 1.6rem;
+}
+
+.consent h3 {
+  margin: 2.4rem 0 0.7rem;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--page-line);
+  font-size: 1.1rem;
+}
+
+.consent p {
+  margin: 1rem 0;
+}
+
+.consent ul,
+.consent ol {
+  margin: 1rem 0;
+  padding-left: 1.4rem;
+}
+
+.consent li {
+  margin: 0.55rem 0;
+}
+
+.consent-full {
+  border-color: var(--page-line);
+  border-radius: 8px;
+}
+
+.consent-full summary {
+  color: var(--page-green);
+}
+
+/* PSS-10: ten questions with five answers each, a line between them. A legend
+   inside a fieldset ignores the padding and the border of its fieldset;
+   floating it makes the lines and the room behave the same for every question. */
+
+.form:has([data-name='pss_1']) {
+  line-height: 1.7;
+}
+
+.form:has([data-name='pss_1']) p {
+  margin: 1rem 0;
+}
+
+.form:has([data-name='pss_1']) fieldset > legend {
+  float: left;
+  width: 100%;
+}
+
+.form:has([data-name='pss_1']) fieldset > legend + * {
+  clear: both;
+}
+
+.form:has([data-name='pss_1']) .field {
+  margin: 0;
+  padding: 1.8rem 0;
+  border-top: 1px solid var(--page-line);
+}
+
+.form:has([data-name='pss_1']) .field:first-of-type {
+  margin-top: 1.5rem;
+}
+
+.form:has([data-name='pss_1']) .options-row {
+  gap: 0.6rem 1.6rem;
+  margin-top: 0.7rem;
+}
+
+.form:has([data-name='pss_1']) .form-actions {
+  margin-top: 1.5rem;
+  padding-bottom: 2rem;
+}
+
+/* Buttons on these pages (also those that jsPsych puts under the text). */
+
+body:has(.page) .jspsych-btn {
+  padding: 0.8rem 1.8rem;
+  border: 2px solid var(--page-green);
+  border-radius: 8px;
+  background: var(--page-green);
+  color: #fff;
+  font: 600 0.9rem/1.2 var(--page-heading-font);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+body:has(.page) .jspsych-btn:hover {
+  border-color: var(--page-green-dark);
+  background: var(--page-green-dark);
+}
+
+body:has(.page) .jspsych-btn:focus-visible {
+  outline: 3px solid #9bd9bb;
+  outline-offset: 2px;
+}
+
+/* The second button (the refusal beside the consent, "No, thanks" after the
+   questions): the same button, outlined. */
+
+body:has(.page) .jspsych-btn.form-secondary,
+body:has(.consent) .jspsych-btn[data-choice='1'] {
+  background: #fff;
+  color: var(--page-green);
+}
+
+body:has(.page) .jspsych-btn.form-secondary:hover,
+body:has(.consent) .jspsych-btn[data-choice='1']:hover {
+  background: #eef7f2;
+  color: var(--page-green-dark);
+}
+
+.jspsych-btn-group-flex {
+  gap: 1rem;
+}
+
+body:has(.consent) #jspsych-html-button-response-btngroup {
+  margin: 1.2rem 0 3rem;
+}
+
+/* Short questionnaires: the buttons a little closer, to fit a laptop window. */
+
+.form:not(:has([data-name='pss_1'])) .form-actions {
+  margin-top: 0.9rem;
+}

@@ -550,7 +550,7 @@ class InstructionTest(StroopTestCase):
                 page, errors, _, _ = self.open_stroop(browser)
                 paragraphs = page.locator(".screen p").all_text_contents()
                 self.assertEqual(paragraphs[0], "Завдання із символами завершено.")
-                self.assertEqual(paragraphs[1], "Завдання з кольорами")
+                self.assertEqual(paragraphs[1], "Тест Струпа")
                 example = page.locator(".stroop-example")
                 self.assertEqual(example.text_content(), "СИНІЙ")
                 self.assertEqual(example.evaluate("e => getComputedStyle(e).color"), "rgb(255, 65, 54)")  # #FF4136

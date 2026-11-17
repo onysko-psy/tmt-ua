@@ -138,7 +138,7 @@ class ConsentTest(RetestCase):
                 page.locator(".consent").wait_for()
                 text = page.locator(".consent").inner_text()
                 self.assertIn("Повторне проходження", text)
-                self.assertIn("Дякуємо, що повернулися!", text)
+                self.assertIn("Дякую, що повернулися!", text)
                 self.assertIn("під тим самим випадковим кодом", text)
                 self.assertIn("Цього разу запитань про Вас не буде", text)
                 self.assertIn("Будь ласка, проходьте на тому самому пристрої, що й першого разу, і так само мишею чи тачпадом.", text)
@@ -204,11 +204,11 @@ class SessionTest(RetestCase):
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver, page, errors = self.finish(browser)
                 texts = self.module(page, "texts.uk.js")["texts"]
-                expect(page.locator(".message")).to_contain_text("Дякуємо, що пройшли дослідження вдруге!", timeout=15000)
+                expect(page.locator(".message")).to_contain_text("Дякую, що пройшли дослідження вдруге!", timeout=15000)
                 text = page.locator(".message").inner_text()
                 self.assertIn("Вашу електронну адресу ми видалимо після завершення дослідження.", text)
                 self.assertIn("Запитання можна надіслати на onysko.nz@ucu.edu.ua.", text)
-                self.assertNotIn("Дякуємо за участь!", text)
+                self.assertNotIn("Дякую за участь!", text)
                 self.assertNotIn("запрошення надійде", text)
                 self.assertEqual(receiver.blocks(), [i for i in RETEST_IDS if i != "device_check"])
 
@@ -246,7 +246,7 @@ class SessionTest(RetestCase):
     def test_a_retest_in_the_main_mode_sends_nothing_while_collection_is_closed(self):
         """As the first session: the main spreadsheet stays empty until COLLECTION_OPEN (decision 161)."""
         context, receiver, page, errors = self.finish(self.browsers[0], query=f"?r={CODE}")
-        expect(page.locator(".message")).to_contain_text("Дякуємо, що пройшли дослідження вдруге!", timeout=15000)
+        expect(page.locator(".message")).to_contain_text("Дякую, що пройшли дослідження вдруге!", timeout=15000)
         self.assertEqual(receiver.requests, [])
         self.assertEqual(errors, [])
 

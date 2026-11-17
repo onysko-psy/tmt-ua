@@ -45,7 +45,7 @@ class EnvironmentTestCase(AppTestCase):
         elif label == "Кодування символів":
             page.locator(".screen", has_text="Спершу потренуємося на 10 символах").wait_for()
         elif label == "Stroop":
-            page.locator(".screen", has_text="Завдання з кольорами").wait_for()
+            page.locator(".screen", has_text="Тест Струпа").wait_for()
         elif label == "SART":
             page.locator(".screen", has_text="Завдання з цифрами").wait_for()
         else:
@@ -54,12 +54,12 @@ class EnvironmentTestCase(AppTestCase):
     def next(self, page):
         """Finishes the block on the screen; a TMT block is clicked through."""
         # Each instruction starts with the end of the task before it (the SART one with
-        # "Завдання з кольорами завершено", the Stroop one with "Завдання із символами
+        # "Тест Струпа завершено", the Stroop one with "Завдання із символами
         # завершено", the coding one with "Завдання з кружечками завершено"), so the
         # latest task is asked first.
         if page.locator(".screen", has_text="Завдання з цифрами").count():
             self.pass_sart(page)
-        elif page.locator(".screen", has_text="Завдання з кольорами").count():
+        elif page.locator(".screen", has_text="Тест Струпа").count():
             self.pass_stroop(page)
         elif page.locator(".screen", has_text="Спершу потренуємося на 10 символах").count():
             self.pass_coding(page)
