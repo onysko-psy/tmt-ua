@@ -63,7 +63,7 @@ export async function renderSartLooks(session, params = PARAMS) {
       <div class="sart-sizes" style="background:${spec.bg}"></div>
       <div class="sart-label">Усі цифри 1–9 найбільшим і найменшим розміром</div>
       <div class="sart-digits" style="background:${spec.bg}"></div>
-      <div class="sart-label">Екрани проби: цифра (250 мс) → маска (900 мс) → підказка в тренуванні → відлік перед основною частиною</div>
+      <div class="sart-label">Екрани проби: цифра (250 мс) → маска (1200 мс) → підказка в тренуванні → відлік перед основною частиною</div>
       <div class="sart-screens"></div>`;
     root.append(section);
 

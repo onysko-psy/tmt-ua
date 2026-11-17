@@ -39,7 +39,7 @@ COLUMNS = {
 FAST = ("&set.sart.mainTrials=12&set.sart.practiceTrials=6&set.sart.maskMs=100&set.sart.countdownMs=200"
         "&set.sart.feedbackMs=40&set.sart.measureFrames=12")
 FAST18 = FAST.replace("practiceTrials=6", "practiceTrials=18")
-SLOW = FAST.replace("maskMs=100", "maskMs=900")  # the real mask: a trial is 1.15 s, long enough to be caught by a wait
+SLOW = FAST.replace("maskMs=100", "maskMs=1200")  # the real mask: a trial is 1.45 s, long enough to be caught by a wait
 
 PHASES = """() => {
     window.__phases = [];
@@ -154,7 +154,7 @@ class ScoreTest(AppTestCase):
     SUMMARIZE = "args => import('./src/sart/score.js').then(m => m.summarize(args.trials, args.limits))"
     LIMITS = {"digitMs": 250}
 
-    def trial(self, type_, rt=None, digit_ms=250, mask_ms=900, fast=0, extra=0):
+    def trial(self, type_, rt=None, digit_ms=250, mask_ms=1200, fast=0, extra=0):
         return {"type": type_, "rt_ms": rt, "digit_ms": digit_ms, "mask_ms": mask_ms, "fast_n": fast, "extra_n": extra}
 
     def summarize(self, page, trials):
@@ -205,7 +205,7 @@ class ScoreTest(AppTestCase):
                 self.assertEqual(r["digit_mean_ms"], 245.1)
                 self.assertEqual(r["digit_dev_mean_ms"], 6.2)  # (0 + 2 + 16.7) / 3
                 self.assertEqual(r["digit_dev_max_ms"], 16.7)
-                self.assertEqual(r["mask_mean_ms"], 900)
+                self.assertEqual(r["mask_mean_ms"], 1200)
 
     def test_which_outcome_a_press_gives(self):
         for browser in self.browsers:
@@ -220,12 +220,12 @@ class ScoreTest(AppTestCase):
             with self.subTest(browser=browser.browser_type.name):
                 page, _ = self.open(browser, "?mode=dev")
                 plan = lambda ms: page.evaluate(
-                    "ms => import('./src/sart/score.js').then(m => m.planFrames(ms, { digitMs: 250, maskMs: 900 }))", ms)
-                self.assertEqual(plan(1000 / 60), {"digit": 15, "total": 69})  # 250 ms and 1150 ms on 60 Hz
-                self.assertEqual(plan(1000 / 120), {"digit": 30, "total": 138})  # and on 120 Hz
-                self.assertEqual(plan(1000 / 144), {"digit": 36, "total": 166})
-                self.assertEqual(plan(1000 / 59.94), {"digit": 15, "total": 69})
-                self.assertEqual(plan(1000 / 75), {"digit": 19, "total": 86})
+                    "ms => import('./src/sart/score.js').then(m => m.planFrames(ms, { digitMs: 250, maskMs: 1200 }))", ms)
+                self.assertEqual(plan(1000 / 60), {"digit": 15, "total": 87})  # 250 ms and 1450 ms on 60 Hz
+                self.assertEqual(plan(1000 / 120), {"digit": 30, "total": 174})  # and on 120 Hz
+                self.assertEqual(plan(1000 / 144), {"digit": 36, "total": 209})
+                self.assertEqual(plan(1000 / 59.94), {"digit": 15, "total": 87})
+                self.assertEqual(plan(1000 / 75), {"digit": 19, "total": 109})
 
     def test_the_frame_time_is_the_median_gap_and_ignores_a_few_slow_frames(self):
         for browser in self.browsers:
@@ -366,32 +366,32 @@ class FramesTest(SartTestCase):
                     self.assertAlmostEqual(trial["digit_ms"], 250, delta=17, msg=trial)
                 self.assertEqual(errors, [])
 
-    def test_a_trial_lasts_1150_ms_with_the_real_mask(self):
+    def test_a_trial_lasts_1450_ms_with_the_real_mask(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
-                page, errors, context, receiver = self.open_sart(browser, FAST.replace("maskMs=100", "maskMs=900") + "&set.sart.mainTrials=8")
+                page, errors, context, receiver = self.open_sart(browser, FAST.replace("maskMs=100", "maskMs=1200") + "&set.sart.mainTrials=8")
                 self.start_sart(page)
                 self.bot_sart(page)
                 summary, log = self.result(page, receiver)
                 trials = log["main"]["trials"]
                 for first, second in zip(trials, trials[1:]):
-                    self.assertAlmostEqual(second["t_ms"] - first["t_ms"], 1150, delta=20)
+                    self.assertAlmostEqual(second["t_ms"] - first["t_ms"], 1450, delta=20)
                     self.assertAlmostEqual(first["digit_ms"], 250, delta=17)
-                    self.assertAlmostEqual(first["mask_ms"], 900, delta=20)
-                self.assertAlmostEqual(summary["sart_time_ms"], 8 * 1150, delta=60)
+                    self.assertAlmostEqual(first["mask_ms"], 1200, delta=20)
+                self.assertAlmostEqual(summary["sart_time_ms"], 8 * 1450, delta=60)
                 self.assertEqual(errors, [])
 
     def test_the_whole_main_part_of_225_trials_in_real_time(self):
-        # 225 x 1.15 s = 4.3 minutes, so only in the first browser.
+        # 225 x 1.45 s = 5.4 minutes, so only in the first browser.
         browser = self.browsers[0]
-        page, errors, context, receiver = self.open_sart(browser, FAST + "&set.sart.maskMs=900&set.sart.mainTrials=225&set.sart.countdownMs=3000&set.sart.measureFrames=40")
+        page, errors, context, receiver = self.open_sart(browser, FAST + "&set.sart.maskMs=1200&set.sart.mainTrials=225&set.sart.countdownMs=3000&set.sart.measureFrames=40")
         self.start_sart(page)
         self.bot_sart(page, delay=400)
         summary, log = self.result(page, receiver)
         trials = log["main"]["trials"]
         self.assertEqual(len(trials), 225)
         self.assertEqual([[t["digit"], t["size"]] for t in trials], MAIN)
-        self.assertAlmostEqual(summary["sart_time_ms"], 225 * 1150, delta=2000)  # a frame of 16.69 ms (59.9 Hz) makes the trial 1151.6 ms
+        self.assertAlmostEqual(summary["sart_time_ms"], 225 * 1450, delta=2000)  # a frame of 16.69 ms (59.9 Hz) makes the trial 1451.6 ms
         self.assertEqual((summary["sart_hit_n"], summary["sart_omission_n"], summary["sart_commission_n"], summary["sart_withhold_n"]),
                          (200, 0, 0, 25))
         self.assertLess(summary["sart_digit_dev_mean_ms"], 3)
@@ -523,7 +523,7 @@ class TrainingTest(SartTestCase):
     def test_a_missed_digit_and_a_press_on_the_3_show_their_hint_under_the_mask_after_the_trial(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
-                page, errors, _, _ = self.open_sart(browser, FAST + "&set.sart.maskMs=900&set.sart.feedbackMs=400", tracked=True)
+                page, errors, _, _ = self.open_sart(browser, FAST + "&set.sart.maskMs=1200&set.sart.feedbackMs=400", tracked=True)
                 self.assertEqual(PRACTICE[0][3][0], 3)
                 self.start_sart_training(page)
                 self.bot_sart(page, omit=[0], press3=[3])
@@ -533,7 +533,7 @@ class TrainingTest(SartTestCase):
                 names = [(p[0], p[2]) for p in phases]
                 self.assertEqual(names[:6], [("prepare", None), ("digit", "0"), ("mask", "0"), ("feedback", "0"), ("digit", "1"), ("mask", "1")])
                 when = {(p[0], p[2]): p[1] for p in phases}
-                self.assertAlmostEqual(when[("feedback", "0")] - when[("digit", "0")], 1150, delta=80)  # after the trial
+                self.assertAlmostEqual(when[("feedback", "0")] - when[("digit", "0")], 1450, delta=80)  # after the trial
                 self.assertAlmostEqual(when[("digit", "1")] - when[("feedback", "0")], 400, delta=80)  # the pause
                 kinds = [p[3] for p in phases if p[0] == "feedback"]
                 self.assertEqual(kinds, ["omission", "commission"])
@@ -624,7 +624,7 @@ class TrainingTest(SartTestCase):
                 page, _, _, _ = self.open_sart(browser, "")
                 params = page.evaluate("() => window.tmtuaParams.sart")
                 self.assertEqual((params["practiceTrials"], params["practiceRepeatAtOmissions"], params["mainTrials"]), (18, 9, 225))
-                self.assertEqual((params["digitMs"], params["maskMs"], params["countdownMs"], params["fastMs"]), (250, 900, 3000, 100))
+                self.assertEqual((params["digitMs"], params["maskMs"], params["countdownMs"], params["fastMs"]), (250, 1200, 3000, 100))
                 self.assertEqual(params["feedbackMs"], 1500)
                 self.assertEqual(params["frameMsOverride"], 0)
 

@@ -5,12 +5,12 @@ import { outcomeOf, summarize, planFrames, frameTimeFrom } from './score.js';
 // One run of the SART task: a training attempt or the main part (T3.3). Used
 // by the SART plugin (plugins/sart.js) and by the timing page (dev-sart-timing.js).
 //
-// A trial is 1150 ms (decision 66; Robertson et al., 1997): a digit of one of
-// five sizes for 250 ms, then the mask (a ring with a cross) for 900 ms. The
+// A trial is 1450 ms (decision 66, decision 171; Robertson et al., 1997 had 1150): a digit of one of
+// five sizes for 250 ms, then the mask (a ring with a cross) for 1200 ms. The
 // time is set by frames, not by timers: at the start the run measures the
 // frame time of this screen (the median gap between frames in the first
 // `measureFrames` frames, recorded), takes the number of frames that makes
-// 250 ms (15 at 60 Hz, 30 at 120 Hz) and 1150 ms, and changes the picture in
+// 250 ms (15 at 60 Hz, 30 at 120 Hz) and 1450 ms, and changes the picture in
 // the first frame that is on or after that many frames from the previous
 // change (a frame of requestAnimationFrame, with its own time stamp). Each
 // trial starts from the real time of its first frame, so a slow frame is not

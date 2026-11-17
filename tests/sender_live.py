@@ -416,11 +416,11 @@ Expected in the pilot sessions sheet:
   hit, withhold; computed from stimuli/sart-sequence.json) and the rates sart_commission_rate = commission /
   threes, sart_omission_rate = omission / other digits; sart_rt_mean_ms about 200-215 (the press was 200 ms after the
   digit), sart_rt_sd_ms small (under 10), sart_rt_cv about 0.01-0.04, sart_fast_n 0, sart_extra_n 0, sart_time_ms about
-  69000 (60 x 1150), sart_refresh_hz about 60 (59-60 in Chromium, 58-60 in WebKit), sart_digit_frames 15,
+  87000 (60 x 1450), sart_refresh_hz about 60 (59-60 in Chromium, 58-60 in WebKit), sart_digit_frames 15,
   sart_digit_mean_ms about 250 (+-2), sart_digit_dev_mean_ms under 2, sart_digit_dev_max_ms under 17,
-  sart_mask_mean_ms about 900; ten sart_* environment columns; sart.json in the session's Drive folder with look,
+  sart_mask_mean_ms about 1200; ten sart_* environment columns; sart.json in the session's Drive folder with look,
   sequence, sizes_mm, limits, practice.attempts (2, 18 trials each, with "timing"), main.timing and main.trials (60,
-  "digit"/"size" equal to the first 60 of stimuli/sart-sequence.json, with digit_ms about 250 and mask_ms about 900
+  "digit"/"size" equal to the first 60 of stimuli/sart-sequence.json, with digit_ms about 250 and mask_ms about 1200
   each), main.keys (empty), during_test, env.
 - each "RETEST" id of a code (T3.3): sart_practice_attempts_n 1, sart_practice_omissions_1 0,
   sart_practice_omissions_2 EMPTY, sart_commission_n 0, sart_omission_n 0, sart_hit_n = all digits other than 3 in the
