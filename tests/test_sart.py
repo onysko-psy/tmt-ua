@@ -310,7 +310,8 @@ class LookTest(SartTestCase):
     def test_the_mask_is_a_ring_with_a_cross_of_44_mm_in_the_middle(self):
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
-                page, errors, _, _ = self.open_sart(browser, FAST)
+                # the real mask (1.2 s): with the short test mask the wait can miss it on a busy machine
+                page, errors, _, _ = self.open_sart(browser, SLOW)
                 self.start_sart_training(page)
                 page.locator(".sart-run[data-phase='mask']").wait_for()
                 box = page.locator(".sart-mask").evaluate("g => { const b = g.getBBox(); return [b.x + b.width / 2, b.y + b.height / 2, b.width]; }")
@@ -822,13 +823,13 @@ class SessionTest(SartTestCase):
                 self.bot_sart(page)
                 summary, log = self.result(page, receiver)
                 own = {k for k in summary if k.startswith("sart_") and not k.startswith(
-                    ("sart_hidden", "sart_blur", "sart_fs_exit", "sart_resize", "sart_zoom", "sart_touch"))}
+                    ("sart_hidden", "sart_blur", "sart_fs_exit", "sart_resize", "sart_zoom", "sart_touch", "sart_idle"))}
                 self.assertEqual(own, COLUMNS)
                 self.assertEqual(summary["sart_look_version"], "1")
                 self.assertEqual(summary["sart_sequence_version"], "1")
                 self.assertEqual(summary["sart_practice_attempts_n"], 1)
                 env = {k for k in summary if k.startswith("sart_") and k not in COLUMNS}
-                self.assertEqual(len(env), 10)  # the monitor's columns
+                self.assertEqual(len(env), 11)  # the monitor's columns
                 self.assertEqual(log["look"], {"version": 1, "variant": "1", "bg": "#FFFFFF", "fg": "#000000"})
                 self.assertEqual(log["sizes_mm"]["digit_cap"], LOOK["digit_cap_mm"])
                 self.assertEqual(log["limits"], {"digit_ms": 250, "mask_ms": 100, "feedback_ms": 40, "countdown_ms": 200, "fast_ms": 100, "measure_frames": 12})

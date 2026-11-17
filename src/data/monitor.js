@@ -16,6 +16,11 @@ import { fullscreenWanted, isFullscreen, onFullscreenChange } from '../fullscree
 // click on the cross to the last circle — and get the exits counted for that
 // span alone (decisions 133, 135).
 //
+// The longest stretch of the task without any input (a click, a key, a move of
+// the pointer) is recorded too, as `idle_max_ms` (T4.1; the reading of the
+// instruction is part of it, a tab left is part of it). It is a signal for the
+// analysis (a long pause, a distraction), with no threshold here.
+//
 // The browser reports a mouse and a touchpad alike ('mouse'), so which one
 // the participant uses is asked in the questionnaire.
 
@@ -78,6 +83,8 @@ export function createMonitor({ onEvent } = {}) {
   let lastFullscreenChange = -Infinity;
   let lastResize = null; // { t, event } of the last plain resize
   let baseline = null; // scale at calibration: { dpr, scale }
+  let lastInput = 0; // time of the last input in the task
+  let idleMax = 0; // the longest stretch without input so far, ms
 
   function record(t, event) {
     event = { t: Math.round(t - block.t0), ...event };
@@ -191,6 +198,15 @@ export function createMonitor({ onEvent } = {}) {
   for (const type of ['gesturestart', 'gesturechange', 'gestureend']) {
     window.addEventListener(type, onGesture, { passive: false, capture: true });
   }
+  const onInput = () => {
+    if (!block) return;
+    const t = now();
+    idleMax = Math.max(idleMax, t - lastInput);
+    lastInput = t;
+  };
+  for (const type of ['pointerdown', 'pointermove', 'keydown', 'wheel']) {
+    window.addEventListener(type, onInput, { capture: true, passive: true });
+  }
   window.addEventListener(
     'pointerdown',
     (event) => {
@@ -230,6 +246,8 @@ export function createMonitor({ onEvent } = {}) {
       pointer: {},
     };
     span = null;
+    lastInput = t0;
+    idleMax = 0;
     for (const kind of Object.keys(INTERVALS)) {
       if (state[kind]) record(t0, { type: INTERVALS[kind][0], at_start: true });
     }
@@ -283,12 +301,15 @@ export function createMonitor({ onEvent } = {}) {
     summary[`${p}resize_n`] = done.resize;
     summary[`${p}zoom_n`] = done.zoom;
     summary[`${p}zoom_blocked_n`] = done.zoomBlocked;
+    const idle = Math.round(Math.max(idleMax, t - lastInput));
+    summary[`${p}idle_max_ms`] = idle;
     summary[`${p}touch_n`] = Object.entries(done.pointer)
       .filter(([type]) => type !== 'mouse')
       .reduce((sum, [, n]) => sum + n, 0);
     const log = {
       started_at: done.startedAt,
       duration_ms: Math.round(t - done.t0),
+      idle_max_ms: idle,
       window_at_start: done.window,
       pointer: done.pointer,
       events: done.events,

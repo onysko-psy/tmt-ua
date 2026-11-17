@@ -380,9 +380,9 @@ class StimuliAndDataTest(CodingTestCase):
                 self.bot_coding(page, 20, wrong=[4])
                 summary, log = self.result(page, receiver)
                 env = {k for k in summary if k.startswith(("coding_hidden", "coding_blur", "coding_fs_exit", "coding_resize",
-                                                            "coding_zoom", "coding_touch"))}
+                                                            "coding_zoom", "coding_touch", "coding_idle"))}
                 self.assertEqual({k for k in summary if k.startswith("coding_")}, COLUMNS | env)
-                self.assertEqual(len(env), 10)
+                self.assertEqual(len(env), 11)
                 self.assertEqual(summary["coding_practice_attempts_n"], 2)
                 self.assertEqual(summary["coding_correct_n"], 19)
                 for key in ["symbols", "sequence", "sizes_mm", "scale_source", "practice", "main", "env"]:

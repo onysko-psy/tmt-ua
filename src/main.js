@@ -139,6 +139,10 @@ async function start() {
   // personal link carries (decision 52); the session itself is new.
   const ids = { session_id: newSessionId(), participant_code: session.retestCode ?? newParticipantCode() };
   let atEnd = false;
+  // When each block began and ended, in ms from the start of the session
+  // (T4.1): the thanks block turns it into the total time and a log.
+  const sessionT0 = performance.now();
+  const timeline = [];
   // Set by a block that ends the session early (e.g. 'screen_too_small'):
   // the block finishes, its message carries the status, and nothing after it runs.
   let ending = null;
@@ -198,20 +202,23 @@ async function start() {
     // the last dev calibration in this browser or a fallback (scale.js).
     scale: () => taskScale(ctx),
     ids,
+    sessionTimeline: () => ({ total_ms: Math.round(performance.now() - sessionT0), blocks: timeline }),
     end: (status) => {
       ending ??= status;
     },
     ending: () => ending,
   };
   if (isDev) window.tmtua.ctx = ctx;
-  const timeline = blocks.map((b) => {
+  const nodes = blocks.map((b) => {
     const node = {
       timeline: b.build(b, ctx),
       on_timeline_start: () => {
+        timeline.push({ id: b.id, start_ms: Math.round(performance.now() - sessionT0), end_ms: null });
         if (b.isTask) monitor.startBlock(b.id);
         banner.refresh();
       },
       on_timeline_finish: () => {
+        timeline[timeline.length - 1].end_ms = Math.round(performance.now() - sessionT0);
         const env = b.isTask ? monitor.endBlock() : null;
         banner.refresh();
         let message = withEnvironment(b.message(b, ctx), env);
@@ -222,7 +229,7 @@ async function start() {
     };
     return b.isTask ? { timeline: [fullscreenGate(), node] } : node;
   });
-  jsPsych.run(timeline);
+  jsPsych.run(nodes);
 }
 
 // The mark tells automated checks that the first screen is up: the stimuli

@@ -170,7 +170,13 @@ export const thanksScreens = () => [{ type: PassPlugin }];
 // receiver ignores the mark if the code has no row there.
 export function thanksMessage(block, ctx) {
   const finishedAt = new Date().toISOString();
-  const message = { summary: { status: 'complete', finished_at: finishedAt } };
+  // The total time of the session and when each block began and ended, in ms
+  // from the start (T4.1): long pauses between and inside blocks show there.
+  const { total_ms, blocks } = ctx.sessionTimeline();
+  const message = {
+    summary: { status: 'complete', finished_at: finishedAt, total_time_ms: total_ms },
+    log: { total_ms, blocks },
+  };
   if (ctx.session.type === 'retest') message.contact = { retest_done_at: finishedAt };
   return message;
 }

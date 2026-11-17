@@ -597,13 +597,13 @@ class SessionTest(StroopTestCase):
                 self.bot_stroop(page)
                 summary, log = self.result(page, receiver)
                 own = {k for k in summary if k.startswith("stroop_") and not k.startswith(
-                    ("stroop_hidden", "stroop_blur", "stroop_fs_exit", "stroop_resize", "stroop_zoom", "stroop_touch"))}
+                    ("stroop_hidden", "stroop_blur", "stroop_fs_exit", "stroop_resize", "stroop_zoom", "stroop_touch", "stroop_idle"))}
                 self.assertEqual(own, COLUMNS)
                 self.assertEqual(summary["stroop_colors_version"], "1")
                 self.assertEqual(summary["stroop_sequence_version"], "1")
                 self.assertEqual(summary["stroop_practice_attempts_n"], 1)
                 env = {k for k in summary if k.startswith("stroop_") and k not in COLUMNS}
-                self.assertEqual(len(env), 10)  # the monitor's columns
+                self.assertEqual(len(env), 11)  # the monitor's columns
                 self.assertEqual(log["colors"]["hex"], LOOK["colors"])
                 self.assertEqual(log["colors"]["bg"], "#2B2B2B")
                 self.assertEqual(log["sequence"]["version"], 1)
