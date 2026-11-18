@@ -3,7 +3,7 @@
 // new version number (CLAUDE.md). Decision numbers refer to
 // docs/05-history-and-decisions.md in the private research repo.
 
-export const APP_VERSION = '0.15.2';
+export const APP_VERSION = '1.0.0-pilot';
 
 // The safeguard of the main mode (decision 161): while false, a session without
 // ?mode= runs but sends nothing, so that the main spreadsheet stays empty until
