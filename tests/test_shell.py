@@ -15,8 +15,18 @@ from playwright.sync_api import expect
 from harness import AppTestCase
 
 
+def close_collection(route):
+    """Serves config.js with data collection closed (COLLECTION_OPEN = false)."""
+    response = route.fetch()
+    body = response.text()
+    assert "export const COLLECTION_OPEN = true;" in body
+    route.fulfill(response=response, body=body.replace("COLLECTION_OPEN = true", "COLLECTION_OPEN = false"))
+
+
 class AppShellTest(AppTestCase):
-    def test_main_mode_runs_all_blocks_in_order(self):
+    def test_main_mode_runs_all_blocks_in_order_and_sends_everything(self):
+        # Data collection is open since version 1.0.0 (decision 179): main mode
+        # sends every block, as pilot and dev do.
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver = self.new_context(browser)
@@ -25,43 +35,36 @@ class AppShellTest(AppTestCase):
                 self.assertEqual(len(blocks), 16)
                 for block in blocks:
                     self.pass_block(page, *block)
-                texts = self.module(page, "texts.uk.js")["texts"]
-                expect(page.locator(".message")).to_contain_text("Дякую за участь!")
+                expect(page.locator(".message")).to_contain_text("Дякую за участь!", timeout=20000)
                 self.assertEqual(page.locator(".dev-badge").count(), 0)
-                # While COLLECTION_OPEN is false (decision 161), main mode sends nothing,
-                # so the main spreadsheet stays empty until data collection.
-                self.assertEqual(receiver.requests, [])
+                # (an accepted device sends nothing: the device check has no message)
+                self.assertEqual(receiver.blocks(), [b[0] for b in blocks if b[0] != "device_check"])
+                self.assertEqual({m["mode"] for m in receiver.accepted}, {"main"})
+                self.assert_valid_for_receiver(context, receiver.accepted)
                 self.assertEqual(errors, [])
 
-    def test_the_collection_switch_is_off_in_the_repository(self):
-        # Decision 161: it is turned on, with a new version, when data collection starts;
-        # this test is changed then too.
+    def test_the_collection_switch_is_on_in_the_repository(self):
+        # Decision 161: it was turned on, with version 1.0.0, when data collection
+        # started (decision 179).
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 page, errors = self.open(browser, "")
-                self.assertFalse(self.module(page, "config.js")["COLLECTION_OPEN"])
+                self.assertTrue(self.module(page, "config.js")["COLLECTION_OPEN"])
                 self.assertEqual(errors, [])
 
-    def test_main_mode_sends_everything_once_collection_is_open(self):
-        def open_collection(route):
-            response = route.fetch()
-            body = response.text()
-            assert "export const COLLECTION_OPEN = false;" in body
-            route.fulfill(response=response, body=body.replace("COLLECTION_OPEN = false", "COLLECTION_OPEN = true"))
-
+    def test_main_mode_sends_nothing_if_collection_is_closed(self):
+        # The safeguard of decision 161 still works if the switch is turned off
+        # again (for example, after the collection ends).
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver = self.new_context(browser)
-                context.route("**/src/config.js", open_collection)
+                context.route("**/src/config.js", close_collection)
                 page, errors = self.open(browser, "", context=context)
-                self.assertTrue(self.module(page, "config.js")["COLLECTION_OPEN"])
+                self.assertFalse(self.module(page, "config.js")["COLLECTION_OPEN"])
                 for block in self.session_blocks(page):
                     self.pass_block(page, *block)
-                expect(page.locator(".message")).to_contain_text("Дякую за участь!", timeout=20000)
-                # (an accepted device sends nothing: the device check has no message)
-                self.assertEqual(receiver.blocks(), [b[0] for b in self.session_blocks(page) if b[0] != "device_check"])
-                self.assertEqual({m["mode"] for m in receiver.accepted}, {"main"})
-                self.assert_valid_for_receiver(context, receiver.accepted)
+                expect(page.locator(".message")).to_contain_text("Дякую за участь!")
+                self.assertEqual(receiver.requests, [])
                 self.assertEqual(errors, [])
 
     def test_unknown_mode_is_rejected(self):

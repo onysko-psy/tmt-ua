@@ -9,6 +9,7 @@ Run from the app/ folder: ../.venv/bin/python -m unittest discover -s tests -p "
 
 import importlib.util
 import json
+import re
 import statistics
 import unittest
 from pathlib import Path
@@ -760,7 +761,10 @@ class DevPagesTest(AppTestCase):
                 text = page.locator("#sart-timing-text").input_value()
                 self.assertIn("measured frame", text)
                 self.assertIn("plan: digit 15 frames", text)
-                self.assertIn("digit ms: mean 25", text)
+                # Within a frame of 250 ms (WebKit gives 249.8-249.9 on a 58.8 Hz frame); the text
+                # uses a decimal comma.
+                mean = float(re.search(r"digit ms: mean ([0-9]+(?:,[0-9]+)?)", text).group(1).replace(",", "."))
+                self.assertLess(abs(mean - 250), 17, text)
                 result = page.evaluate("window.tmtuaSartTiming")
                 self.assertEqual(len(result["trials"]), 60)
                 self.assertEqual(result["digit_frames"], 15)

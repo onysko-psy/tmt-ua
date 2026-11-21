@@ -3,13 +3,14 @@
 // new version number (CLAUDE.md). Decision numbers refer to
 // docs/05-history-and-decisions.md in the private research repo.
 
-export const APP_VERSION = '1.0.0-pilot';
+export const APP_VERSION = '1.0.0';
 
 // The safeguard of the main mode (decision 161): while false, a session without
 // ?mode= runs but sends nothing, so that the main spreadsheet stays empty until
 // data collection starts. It is set to true, together with a new version, when
 // the collection starts (decision 26). Pilot and dev modes are not affected.
-export const COLLECTION_OPEN = false;
+// Opened with version 1.0.0 (decision 179).
+export const COLLECTION_OPEN = true;
 
 // Values allowed in the ?mode= URL parameter; no parameter means 'main'.
 // pilot and dev write to the pilot copies of the spreadsheets (decision 53).
@@ -38,10 +39,10 @@ export const PARAMS = {
     letterMm: 4.5, // height of capital letters and digits
     font: 'montserrat-semibold', // bundled in src/fonts/ (decision 131)
   },
-  // Criteria of taking part (decisions 11, 86): ages inclusive.
+  // Criteria of taking part (decisions 11, 86, 178): ages inclusive.
   criteria: {
     ageMin: 18,
-    ageMax: 45,
+    ageMax: 60,
   },
   coding: {
     durationMs: 90_000, // protocol

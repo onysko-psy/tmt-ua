@@ -126,9 +126,9 @@ class CriteriaTest(FormTestCase):
                 self.assertEqual(errors, [])
 
     def test_age_boundaries(self):
-        """18 and 45 take part, 17 and 46 do not (decision 11)."""
+        """18 and 60 take part, 17 and 61 do not (decisions 11, 178)."""
         for browser in self.browsers:
-            for age, fits in [(18, True), (45, True), (17, False), (46, False), (50, False)]:
+            for age, fits in [(18, True), (45, True), (46, True), (60, True), (17, False), (61, False), (70, False)]:
                 with self.subTest(browser=browser.browser_type.name, age=age):
                     *_, page, errors, message = self.run_criteria(browser, age=age)
                     if fits:
@@ -138,11 +138,11 @@ class CriteriaTest(FormTestCase):
                     self.assertEqual(errors, [])
 
     def test_exclusion_keeps_only_the_reason(self):
-        """Scenario "Exclusion" (decision 86): age 50 -> excluded_criteria,
+        """Scenario "Exclusion" (decision 86): age 65 -> excluded_criteria,
         reason age, no age and no other answers."""
         for browser in self.browsers:
             with self.subTest(browser=browser.browser_type.name):
-                context, receiver, page, errors, message = self.run_criteria(browser, age=50, tbi="yes", color_vision="yes")
+                context, receiver, page, errors, message = self.run_criteria(browser, age=65, tbi="yes", color_vision="yes")
                 expect(page.locator(".dev-status")).to_have_text("excluded_criteria")
                 self.assertEqual(message["summary"], {"exclusion_reason": "age", "status": "excluded_criteria"})
                 self.assertNotIn("log", message)
@@ -167,7 +167,7 @@ class CriteriaTest(FormTestCase):
             with self.subTest(browser=browser.browser_type.name):
                 context, receiver, page, errors = self.open_block(browser, None, mode="pilot")
                 self.pass_consent(page)
-                self.pass_criteria(page, age=60)
+                self.pass_criteria(page, age=65)
                 texts = self.module(page, "texts.uk.js")["texts"]
                 expect(page.locator(".message")).to_have_text(texts["end"]["excluded_criteria"], timeout=15000)
                 self.assertEqual(receiver.blocks(), ["consent", "criteria"])

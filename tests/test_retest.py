@@ -13,6 +13,7 @@ import unittest
 from playwright.sync_api import expect
 
 from harness import AppTestCase
+from test_shell import close_collection
 
 CODE = "k7m2x9pq4a"  # a valid code: ten characters of the participant-code alphabet
 PARSE = "search => import('./src/session.js').then(m => m.parseUrl(search))"
@@ -244,10 +245,22 @@ class SessionTest(RetestCase):
                 self.assertEqual(errors, [])
 
     def test_a_retest_in_the_main_mode_sends_nothing_while_collection_is_closed(self):
-        """As the first session: the main spreadsheet stays empty until COLLECTION_OPEN (decision 161)."""
-        context, receiver, page, errors = self.finish(self.browsers[0], query=f"?r={CODE}")
+        """As the first session: nothing reaches the main spreadsheet when COLLECTION_OPEN is off (decision 161)."""
+        context, receiver = self.new_context(self.browsers[0])
+        context.route("**/src/config.js", close_collection)
+        context, receiver, page, errors = self.finish(self.browsers[0], query=f"?r={CODE}", context=context, receiver=receiver)
         expect(page.locator(".message")).to_contain_text("Дякую, що пройшли дослідження вдруге!", timeout=15000)
         self.assertEqual(receiver.requests, [])
+        self.assertEqual(errors, [])
+
+    def test_a_retest_in_the_main_mode_sends_everything(self):
+        """Collection is open since 1.0.0 (decision 179): a retest by the personal link goes to the main spreadsheet."""
+        context, receiver, page, errors = self.finish(self.browsers[0], query=f"?r={CODE}")
+        expect(page.locator(".message")).to_contain_text("Дякую, що пройшли дослідження вдруге!", timeout=20000)
+        self.assertEqual({m["mode"] for m in receiver.accepted}, {"main"})
+        self.assertEqual({m["participant_code"] for m in receiver.accepted}, {CODE})
+        self.assertEqual(receiver.accepted[-1]["summary"]["status"], "complete")
+        self.assert_valid_for_receiver(context, receiver.accepted)
         self.assertEqual(errors, [])
 
     def test_the_first_session_marks_no_contact_at_the_end(self):
